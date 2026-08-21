@@ -13,8 +13,9 @@ import {
   LogIn, 
   UserPlus 
 } from "lucide-react";
+import { NagarSetuLogo } from "../common/NagarSetuLogo";
 
-export function LandingGate() {
+export function LandingGate({ onBackToLanding }) {
   const { setAuthModalOpen, setAuthModalMode, loginWithGoogle } = useAuth();
 
   const handleOpenAuth = (mode) => {
@@ -31,8 +32,20 @@ export function LandingGate() {
   };
 
   return (
-    <div className="min-h-[80vh] flex flex-col items-center justify-center px-4 py-8 max-w-6xl mx-auto animate-fade-in">
+    <div className="min-h-[80vh] flex flex-col items-center justify-center px-4 py-8 max-w-6xl mx-auto animate-fade-in relative">
       
+      {/* Back to Public Landing Page Button */}
+      {onBackToLanding && (
+        <button
+          type="button"
+          onClick={onBackToLanding}
+          className="self-start sm:absolute sm:top-2 sm:left-4 mb-4 sm:mb-0 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-slate-400 hover:text-white text-xs font-semibold transition cursor-pointer"
+        >
+          <span>←</span>
+          <span>Back to Overview</span>
+        </button>
+      )}
+
       {/* Top Brand Pill */}
       <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-sky-950/80 border border-sky-800 text-sky-300 text-xs font-bold uppercase tracking-widest mb-6 shadow-glow-primary">
         <Sparkles className="w-4 h-4 text-sky-400" />
@@ -41,11 +54,21 @@ export function LandingGate() {
 
       {/* Main Hero Header */}
       <div className="text-center max-w-3xl mb-12 sm:mb-16">
+        <div className="flex items-center justify-center gap-3 mb-3">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-sky-600 via-sky-500 to-emerald-400 p-0.5 shadow-lg shadow-sky-500/20 flex items-center justify-center">
+            <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center p-2">
+              <NagarSetuLogo className="w-7 h-7" />
+            </div>
+          </div>
+        </div>
         <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight leading-tight font-sans">
-          Civic<span className="text-sky-400">Pulse</span> AI
+          NAGAR<span className="text-sky-400">SETU</span>
         </h1>
+        <div className="text-sm sm:text-base font-bold text-sky-300/90 tracking-wider mt-1 font-sans">
+          नगरसेतु
+        </div>
         <p className="text-lg sm:text-2xl font-bold text-slate-200 mt-2">
-          Agentic Civic Intelligence & Complaint-to-Resolution Platform
+          Civic Intelligence Platform
         </p>
         <p className="text-sm sm:text-base text-slate-400 mt-3 max-w-xl mx-auto leading-relaxed italic">
           "Report problems. Improve your city. Earn civic impact."
