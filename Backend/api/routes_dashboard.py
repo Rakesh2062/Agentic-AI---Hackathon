@@ -66,8 +66,7 @@ async def get_department_cases(
     cases = []
     async for doc in cursor:
         doc["_id"] = str(doc["_id"])
-        from agents.orchestrator import _doc_to_response
-        cases.append(_doc_to_response(doc))
+        cases.append(doc)
 
     return cases
 
@@ -178,6 +177,27 @@ async def update_case_status(case_id: str, update: CaseUpdateRequest):
     if update.resolution_photo:
         update_fields["resolution_photo"] = update.resolution_photo
 
+    # Trigger AI agent for resolution generation if applicable
+    from agents.orchestrator import Orchestrator
+    from agents.state.complaint_state import ComplaintState
+    from agents.config import ComplaintStatus
+
+    if update.status.value in ("resolved", "closed"):
+        orchestrator = Orchestrator()
+        # Reconstruct state from DB doc
+        state = ComplaintState(
+            complaint_id=case_doc.get("complaint_id", ""),
+            description=case_doc.get("description", ""),
+            current_status=ComplaintStatus.IN_PROGRESS
+        )
+        state = await orchestrator.admin_override(
+            state,
+            status=ComplaintStatus(update.status.value),
+            notes=message
+        )
+        update_fields["resolution_summary"] = state.resolution_summary
+        update_fields["citizen_message"] = state.citizen_message
+
     await db.cases.update_one(
         {"_id": oid},
         {
@@ -189,5 +209,4 @@ async def update_case_status(case_id: str, update: CaseUpdateRequest):
     # Return updated case
     updated = await db.cases.find_one({"_id": oid})
     updated["_id"] = str(updated["_id"])
-    from agents.orchestrator import _doc_to_response
-    return _doc_to_response(updated)
+    return updated

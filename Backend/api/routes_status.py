@@ -5,7 +5,7 @@ Status routes — citizen-facing complaint tracking.
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException
 
-from agents.status_explainer_agent import explain_status
+# from agents.status_explainer_agent import explain_status
 from db.database import get_db
 from schemas.models import Case, StatusResponse
 from utils.logger import get_logger
@@ -36,14 +36,14 @@ async def get_case_status(case_id: str):
     case_doc["_id"] = str(case_doc["_id"])
     case = Case(**case_doc)
 
-    # Use the status explainer agent for the message
-    explanation = await explain_status(case)
+    # Use the pre-generated citizen message from the pipeline
+    message = case_doc.get("citizen_message", "Your complaint is currently being processed.")
 
     return StatusResponse(
         case_id=case.id,  # type: ignore[arg-type]
         complaint_id=case.complaint_id,
         status=case.status,
-        message=explanation["message"],
+        message=message,
         department=case.department,
         priority=case.priority,
         last_updated=case.updated_at,
@@ -71,13 +71,13 @@ async def get_status_by_complaint(complaint_id: str):
     case_doc["_id"] = str(case_doc["_id"])
     case = Case(**case_doc)
 
-    explanation = await explain_status(case)
+    message = case_doc.get("citizen_message", "Your complaint is currently being processed.")
 
     return StatusResponse(
         case_id=case.id,  # type: ignore[arg-type]
         complaint_id=case.complaint_id,
         status=case.status,
-        message=explanation["message"],
+        message=message,
         department=case.department,
         priority=case.priority,
         last_updated=case.updated_at,
