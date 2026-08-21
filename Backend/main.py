@@ -25,7 +25,7 @@ from api.routes_intake import router as intake_router
 from api.routes_dashboard import router as dashboard_router
 from api.routes_analytics import router as analytics_router
 from api.routes_status import router as status_router
-from db.database import ping_async_db, close_async_client
+from database.connection import ping_async_db, close_async_client
 
 logger = logging.getLogger("civicpulse")
 

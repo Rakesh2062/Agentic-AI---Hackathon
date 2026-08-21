@@ -10,7 +10,8 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
-from db.database import get_db, COMPLAINTS_COLLECTION, COMPLAINT_UPDATES_COLLECTION
+from database.connection import get_db
+from database.collections import COMPLAINTS_COLLECTION, COMPLAINT_UPDATES_COLLECTION
 
 logger = logging.getLogger(__name__)
 

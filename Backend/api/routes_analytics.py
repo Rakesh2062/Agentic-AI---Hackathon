@@ -6,7 +6,8 @@ import logging
 from fastapi import APIRouter, Query
 
 from schemas.models import AnalyticsHotspot, DepartmentStats
-from db.database import get_db, COMPLAINTS_COLLECTION
+from database.connection import get_db
+from database.collections import COMPLAINTS_COLLECTION
 
 log = logging.getLogger(__name__)
 

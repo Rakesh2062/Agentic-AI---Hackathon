@@ -6,7 +6,8 @@ import logging
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException
 
-from db.database import get_db, COMPLAINTS_COLLECTION
+from database.connection import get_db
+from database.collections import COMPLAINTS_COLLECTION
 from schemas.models import Case, StatusResponse
 
 log = logging.getLogger(__name__)

@@ -140,4 +140,5 @@ def ping_database(client: Optional[MongoClient] = None) -> bool:
     """Convenience alias for ping_sync_db."""
     return ping_sync_db(client)
 
+get_db = get_async_db
 
