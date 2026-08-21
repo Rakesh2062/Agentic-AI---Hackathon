@@ -79,9 +79,15 @@ export function CaseDetailModal({ isOpen, onClose, caseItem, onCaseUpdated }) {
         demoMode
       );
 
-      // Award points in AuthContext
+      // Award points in AuthContext with duplicate prevention
       if (result.userId) {
-        awardCivicPoints(result.userId, result.pointsAwarded, result.pointsReason, caseItem.summary || caseItem.raw_text);
+        awardCivicPoints(
+          result.userId, 
+          result.pointsAwarded, 
+          result.pointsReason, 
+          caseItem.summary || caseItem.raw_text,
+          caseItem.complaint_id || caseItem.id
+        );
       }
 
       setIsValidating(false);

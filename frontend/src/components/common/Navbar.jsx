@@ -23,9 +23,15 @@ export function Navbar({ onOpenLanding }) {
     setCitizenSubTab,
   } = useApp();
 
-  const { currentUser, logout, isOfficial, isCivilian, isTourist } = useAuth();
+  const { currentUser, logout, isOfficial, isCivilian, isTourist, setAuthModalOpen } = useAuth();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const handleLandingNavigation = () => {
+    setAuthModalOpen(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (onOpenLanding) onOpenLanding();
+  };
 
   return (
     <header className="sticky top-0 z-40 bg-slate-950/85 backdrop-blur-md border-b border-slate-800/80 shadow-md">
@@ -34,7 +40,7 @@ export function Navbar({ onOpenLanding }) {
           
           {/* Logo & Brand */}
           <div 
-            onClick={onOpenLanding}
+            onClick={handleLandingNavigation}
             className="flex items-center gap-3 cursor-pointer group"
           >
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-600 via-sky-500 to-emerald-400 p-0.5 shadow-glow-primary flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
@@ -215,8 +221,9 @@ export function Navbar({ onOpenLanding }) {
               </div>
             ) : (
               <button
-                onClick={onOpenLanding}
-                className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md shadow-sky-600/30 transition"
+                type="button"
+                onClick={handleLandingNavigation}
+                className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md shadow-sky-600/30 transition cursor-pointer"
               >
                 Sign In
               </button>
