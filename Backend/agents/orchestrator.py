@@ -132,15 +132,32 @@ class Orchestrator:
         """
         result = ProcessingResult()
 
+        # Extract location fields if nested
+        loc = complaint_data.get("location")
+        lat = complaint_data.get("latitude")
+        lng = complaint_data.get("longitude")
+        addr = complaint_data.get("address")
+        if isinstance(loc, dict):
+            lat = lat if lat is not None else loc.get("lat")
+            lng = lng if lng is not None else loc.get("lng")
+            addr = addr if addr is not None else loc.get("address")
+        elif hasattr(loc, "lat"):
+            lat = lat if lat is not None else loc.lat
+            lng = lng if lng is not None else loc.lng
+            addr = addr if addr is not None else loc.address
+
+        desc = complaint_data.get("description") or complaint_data.get("raw_text") or ""
+        cid = complaint_data.get("complaint_id") or complaint_data.get("complaint_number") or ""
+
         # Build initial state
         state = ComplaintState(
-            complaint_id=complaint_data.get("complaint_id", ""),
-            citizen_id=complaint_data.get("citizen_id", ""),
-            description=complaint_data.get("description", ""),
+            complaint_id=cid,
+            citizen_id=complaint_data.get("citizen_id") or complaint_data.get("userId") or "anonymous",
+            description=desc,
             image_url=complaint_data.get("image_url"),
-            latitude=complaint_data.get("latitude"),
-            longitude=complaint_data.get("longitude"),
-            address=complaint_data.get("address"),
+            latitude=lat,
+            longitude=lng,
+            address=addr,
             submitted_at=complaint_data.get(
                 "submitted_at", datetime.now(timezone.utc)
             ),

@@ -1,12 +1,8 @@
-"""
-Intake routes — citizen-facing complaint submission + retrieval.
-"""
-
 import logging
 from fastapi import APIRouter, HTTPException, status
 
 from agents.orchestrator import Orchestrator
-from db.database import get_db
+from db.database import get_db, COMPLAINTS_COLLECTION
 from schemas.models import CaseResponse, ComplaintCreate
 
 log = logging.getLogger(__name__)
@@ -30,16 +26,22 @@ async def create_complaint(submission: ComplaintCreate):
     log.info("POST /complaints — text: %.60s…", submission.raw_text)
     try:
         orchestrator = Orchestrator()
-        result = await orchestrator.process_complaint(submission.model_dump())
+        result = await orchestrator.process_complaint(submission.to_agent_dict())
         
         if not result.success:
             raise HTTPException(status_code=400, detail=f"Processing errors: {result.errors}")
             
         case_data = result.state.model_dump()
         
-        # Insert into DB
+        # Ensure canonical schema compatibility
+        if "complaint_number" not in case_data or not case_data["complaint_number"]:
+            case_data["complaint_number"] = case_data.get("complaint_id")
+        if "created_at" not in case_data or not case_data["created_at"]:
+            case_data["created_at"] = case_data.get("submitted_at")
+        
+        # Insert into canonical complaints collection
         db = get_db()
-        inserted = await db.cases.insert_one(case_data)
+        inserted = await db[COMPLAINTS_COLLECTION].insert_one(case_data)
         case_data["_id"] = str(inserted.inserted_id)
         
         return case_data
@@ -62,7 +64,12 @@ async def create_complaint(submission: ComplaintCreate):
 async def get_complaint_case(complaint_id: str):
     """Look up the case created from a specific complaint."""
     db = get_db()
-    case_doc = await db.cases.find_one({"complaint_id": complaint_id})
+    case_doc = await db[COMPLAINTS_COLLECTION].find_one({
+        "$or": [
+            {"complaint_id": complaint_id},
+            {"complaint_number": complaint_id},
+        ]
+    })
 
     if not case_doc:
         raise HTTPException(

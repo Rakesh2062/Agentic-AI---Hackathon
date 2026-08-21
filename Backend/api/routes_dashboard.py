@@ -3,7 +3,7 @@ Dashboard routes — department-facing case queues and state transitions.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException, Query
@@ -16,6 +16,7 @@ from schemas.models import (
     StatusUpdate,
 )
 from agents.config import CATEGORY_DEPARTMENT_MAP
+from db.database import get_db, COMPLAINTS_COLLECTION, COMPLAINT_UPDATES_COLLECTION
 
 log = logging.getLogger(__name__)
 
@@ -62,12 +63,18 @@ async def get_department_cases(
     """Fetch cases for a department's Kanban board."""
     db = get_db()
 
-    query: dict = {"department": department_name}
+    query: dict = {
+        "$or": [
+            {"department": department_name},
+            {"category": department_name},
+        ]
+    }
     if status_filter:
         query["status"] = status_filter.value
 
     cursor = (
-        db.cases.find(query)
+        db[COMPLAINTS_COLLECTION]
+        .find(query)
         .sort("created_at", -1)
         .skip(skip)
         .limit(limit)
@@ -76,6 +83,8 @@ async def get_department_cases(
     cases = []
     async for doc in cursor:
         doc["_id"] = str(doc["_id"])
+        if "complaint_id" not in doc and "complaint_number" in doc:
+            doc["complaint_id"] = doc["complaint_number"]
         cases.append(doc)
 
     return cases
@@ -91,7 +100,14 @@ async def get_department_stats(department_name: str):
     db = get_db()
 
     pipeline = [
-        {"$match": {"department": department_name}},
+        {
+            "$match": {
+                "$or": [
+                    {"department": department_name},
+                    {"category": department_name},
+                ]
+            }
+        },
         {
             "$group": {
                 "_id": None,
@@ -99,30 +115,30 @@ async def get_department_stats(department_name: str):
                 "open_cases": {
                     "$sum": {
                         "$cond": [
-                            {"$in": ["$status", ["submitted", "under_review", "assigned"]]},
+                            {"$in": ["$status", ["submitted", "under_review", "assigned", "SUBMITTED", "PROCESSING", "CLASSIFIED", "PRIORITIZED", "ASSIGNED"]]},
                             1, 0,
                         ]
                     }
                 },
                 "in_progress": {
-                    "$sum": {"$cond": [{"$eq": ["$status", "in_progress"]}, 1, 0]}
+                    "$sum": {"$cond": [{"$in": ["$status", ["in_progress", "IN_PROGRESS"]]}, 1, 0]}
                 },
                 "resolved": {
                     "$sum": {
                         "$cond": [
-                            {"$in": ["$status", ["resolved", "closed"]]},
+                            {"$in": ["$status", ["resolved", "closed", "RESOLVED"]]},
                             1, 0,
                         ]
                     }
                 },
                 "escalated": {
-                    "$sum": {"$cond": [{"$eq": ["$status", "escalated"]}, 1, 0]}
+                    "$sum": {"$cond": [{"$in": ["$status", ["escalated", "ESCALATED"]]}, 1, 0]}
                 },
             }
         },
     ]
 
-    results = await db.cases.aggregate(pipeline).to_list(1)
+    results = await db[COMPLAINTS_COLLECTION].aggregate(pipeline).to_list(1)
 
     if not results:
         return DepartmentStats(
@@ -160,11 +176,11 @@ async def update_case_status(case_id: str, update: CaseUpdateRequest):
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid case ID format")
 
-    case_doc = await db.cases.find_one({"_id": oid})
+    case_doc = await db[COMPLAINTS_COLLECTION].find_one({"_id": oid})
     if not case_doc:
         raise HTTPException(status_code=404, detail="Case not found")
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     # Build status update entry
     message = update.message or STATUS_MESSAGES.get(
@@ -196,7 +212,7 @@ async def update_case_status(case_id: str, update: CaseUpdateRequest):
         orchestrator = Orchestrator()
         # Reconstruct state from DB doc
         state = ComplaintState(
-            complaint_id=case_doc.get("complaint_id", ""),
+            complaint_id=case_doc.get("complaint_id", "") or case_doc.get("complaint_number", ""),
             description=case_doc.get("description", ""),
             current_status=ComplaintStatus.IN_PROGRESS
         )
@@ -208,7 +224,7 @@ async def update_case_status(case_id: str, update: CaseUpdateRequest):
         update_fields["resolution_summary"] = state.resolution_summary
         update_fields["citizen_message"] = state.citizen_message
 
-    await db.cases.update_one(
+    await db[COMPLAINTS_COLLECTION].update_one(
         {"_id": oid},
         {
             "$set": update_fields,
@@ -216,7 +232,25 @@ async def update_case_status(case_id: str, update: CaseUpdateRequest):
         },
     )
 
+    # Record update in complaint_updates collection
+    audit_update = {
+        "complaint_id": oid,
+        "updated_by": None,
+        "old_status": case_doc.get("status"),
+        "new_status": update.status.value,
+        "action": "STATUS_UPDATE",
+        "message": message,
+        "is_ai_action": False,
+        "created_at": now,
+    }
+    try:
+        await db[COMPLAINT_UPDATES_COLLECTION].insert_one(audit_update)
+    except Exception as e:
+        log.warning("Failed to record audit update log: %s", e)
+
     # Return updated case
-    updated = await db.cases.find_one({"_id": oid})
+    updated = await db[COMPLAINTS_COLLECTION].find_one({"_id": oid})
     updated["_id"] = str(updated["_id"])
+    if "complaint_id" not in updated and "complaint_number" in updated:
+        updated["complaint_id"] = updated["complaint_number"]
     return updated

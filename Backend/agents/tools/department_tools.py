@@ -15,10 +15,12 @@ from agents.config import (
     SLA_HOURS,
 )
 
+from db.database import get_db, DEPARTMENTS_COLLECTION
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Mock department data
+# Fallback department data
 # ---------------------------------------------------------------------------
 _DEPARTMENTS: list[dict[str, Any]] = [
     {
@@ -64,19 +66,26 @@ _DEPARTMENTS: list[dict[str, Any]] = [
 # Tool functions
 # ---------------------------------------------------------------------------
 async def get_departments() -> list[dict[str, Any]]:
-    """Return the list of all departments.
-
-    Replace with: SELECT * FROM departments
-    """
+    """Return the list of all departments from MongoDB or fallback."""
     logger.info("get_departments called")
+    try:
+        db = get_db()
+        cursor = db[DEPARTMENTS_COLLECTION].find({})
+        depts = []
+        async for doc in cursor:
+            doc["_id"] = str(doc["_id"])
+            if "id" not in doc:
+                doc["id"] = doc.get("code") or doc["_id"]
+            depts.append(doc)
+        if depts:
+            return depts
+    except Exception as exc:
+        logger.warning("MongoDB get_departments error (%s), using fallback", exc)
     return _DEPARTMENTS
 
 
 async def get_department_for_category(category: str) -> Optional[str]:
-    """Return the default department name for a complaint category.
-
-    Replace with: SELECT dept_name FROM category_dept_map WHERE category = %s
-    """
+    """Return the default department name for a complaint category."""
     logger.info("get_department_for_category called for %s", category)
     return CATEGORY_DEPARTMENT_MAP.get(category)
 
@@ -84,10 +93,7 @@ async def get_department_for_category(category: str) -> Optional[str]:
 async def get_department_sla(
     department_name: str, priority: str
 ) -> Optional[int]:
-    """Return the SLA deadline in hours for a department+priority combo.
-
-    Replace with: SELECT sla_hours FROM department_sla WHERE ...
-    """
+    """Return the SLA deadline in hours for a department+priority combo."""
     logger.info(
         "get_department_sla called for dept=%s, priority=%s",
         department_name,
@@ -97,11 +103,23 @@ async def get_department_sla(
 
 
 async def get_department_by_name(name: str) -> Optional[dict[str, Any]]:
-    """Lookup a single department by name.
-
-    Replace with: SELECT * FROM departments WHERE name = %s
-    """
+    """Lookup a single department by name from MongoDB or fallback."""
     logger.info("get_department_by_name called for %s", name)
+    try:
+        db = get_db()
+        doc = await db[DEPARTMENTS_COLLECTION].find_one({
+            "$or": [
+                {"name": name},
+                {"code": name},
+            ]
+        })
+        if doc:
+            doc["_id"] = str(doc["_id"])
+            if "id" not in doc:
+                doc["id"] = doc.get("code") or doc["_id"]
+            return doc
+    except Exception as exc:
+        logger.warning("MongoDB get_department_by_name error (%s), using fallback", exc)
     for dept in _DEPARTMENTS:
         if dept["name"] == name:
             return dept

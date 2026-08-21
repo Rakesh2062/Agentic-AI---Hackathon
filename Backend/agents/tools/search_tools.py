@@ -1,70 +1,90 @@
 """
-Search Tools — embedding generation and similarity search.
-
-Mock implementation stores embeddings in memory.  Replace with
-pgvector / Pinecone / Qdrant when the database layer is ready.
+Search Tools — embedding generation, vector similarity search, and RAG retrieval.
+Connects the AI Agent layer to the canonical MongoDB database layer and RAG knowledge base.
 """
 
 from __future__ import annotations
 
 import logging
-import math
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Any, Optional
+
+from database.collections import (
+    COMPLAINTS_COLLECTION,
+    COMPLAINT_EMBEDDINGS_COLLECTION,
+    ensure_object_id,
+)
+from database.connection import get_sync_db
+from database.queries.duplicate_detection import (
+    calculate_haversine_distance_km,
+    compute_cosine_similarity,
+)
+from rag.embeddings import (
+    EMBEDDING_DIMENSION,
+    generate_embedding as rag_generate_embedding,
+)
+from rag.retriever import (
+    get_relevant_resolution_sop,
+    retrieve_relevant_guidelines,
+)
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Mock embedding store  (complaint_id → vector)
-# ---------------------------------------------------------------------------
-_MOCK_EMBEDDINGS: dict[str, list[float]] = {}
-
-# Pre-seeded mock similar complaints for demo purposes
-_MOCK_SIMILAR_RESULTS: list[dict[str, Any]] = [
-    {
-        "complaint_id": "CMP-001",
-        "similarity_score": 0.87,
-        "category": "roads",
-        "description_snippet": "Large pothole on Main Street near the market.",
-        "location": "Main Street, Sector 5",
-        "created_at": (datetime.now(timezone.utc) - timedelta(days=3)).isoformat(),
-    },
-    {
-        "complaint_id": "CMP-002",
-        "similarity_score": 0.62,
-        "category": "drainage",
-        "description_snippet": "Blocked drainage causing water logging.",
-        "location": "2nd Cross Road, Sector 5",
-        "created_at": (datetime.now(timezone.utc) - timedelta(days=5)).isoformat(),
-    },
+# Re-export RAG retrieval functions for M2 agents
+__all__ = [
+    "generate_embedding",
+    "store_embedding",
+    "search_similar_complaints",
+    "search_complaints_by_location",
+    "retrieve_relevant_guidelines",
+    "get_relevant_resolution_sop",
+    "EMBEDDING_DIMENSION",
 ]
-
-
-def _cosine_similarity(a: list[float], b: list[float]) -> float:
-    """Compute cosine similarity between two vectors."""
-    dot = sum(x * y for x, y in zip(a, b))
-    norm_a = math.sqrt(sum(x * x for x in a))
-    norm_b = math.sqrt(sum(x * x for x in b))
-    if norm_a == 0 or norm_b == 0:
-        return 0.0
-    return dot / (norm_a * norm_b)
 
 
 # ---------------------------------------------------------------------------
 # Tool functions
 # ---------------------------------------------------------------------------
 async def generate_embedding(text: str) -> list[float]:
-    """Generate an embedding vector for *text*.
-
-    In production, this will call the LLM client's embed() method or
-    a dedicated embedding API.  The mock returns a simple hash-based
-    deterministic vector.
+    """
+    Generates a 768-dimensional embedding vector for input text.
+    Uses Google GenAI SDK (gemini-embedding-2) with automatic fallback for offline/test environments.
     """
     logger.info("generate_embedding called (text length=%d)", len(text))
-    # Deterministic mock: convert chars → floats, pad/truncate to 64 dims
-    raw = [float(ord(c) % 50) / 50.0 for c in text[:64]]
-    raw += [0.0] * max(0, 64 - len(raw))
-    return raw
+    return rag_generate_embedding(text, is_query=False)
+
+
+async def store_embedding(
+    complaint_id: str,
+    embedding: list[float],
+    db: Any = None,
+) -> None:
+    """
+    Stores or updates the embedding vector for a complaint in COMPLAINT_EMBEDDINGS_COLLECTION.
+    """
+    logger.info("store_embedding called for complaint_id=%s", complaint_id)
+    if not embedding or not complaint_id:
+        return
+
+    try:
+        active_db = db if db is not None else get_sync_db()
+        cid = ensure_object_id(complaint_id)
+        now = datetime.now(timezone.utc)
+
+        active_db[COMPLAINT_EMBEDDINGS_COLLECTION].update_one(
+            {"complaint_id": cid},
+            {
+                "$set": {
+                    "complaint_id": cid,
+                    "embedding": embedding,
+                    "model_name": "gemini-embedding-2",
+                    "created_at": now,
+                }
+            },
+            upsert=True,
+        )
+    except Exception as exc:
+        logger.warning("store_embedding DB error (%s), skipping store", exc)
 
 
 async def search_similar_complaints(
@@ -72,49 +92,96 @@ async def search_similar_complaints(
     *,
     top_k: int = 5,
     threshold: float = 0.5,
+    db: Any = None,
 ) -> list[dict[str, Any]]:
-    """Search for complaints similar to the given embedding vector.
-
-    Replace with: pgvector nearest-neighbour query.
+    """
+    Searches for complaints similar to the given embedding vector in MongoDB.
+    Queries COMPLAINT_EMBEDDINGS_COLLECTION, joins with COMPLAINTS_COLLECTION,
+    and returns matches meeting the similarity threshold.
     """
     logger.info(
         "search_similar_complaints called (top_k=%d, threshold=%s)",
         top_k,
         threshold,
     )
-    # If we have stored embeddings, compute real cosine similarity
-    results: list[dict[str, Any]] = []
-    if _MOCK_EMBEDDINGS:
-        for cid, vec in _MOCK_EMBEDDINGS.items():
-            score = _cosine_similarity(embedding, vec)
+    if not embedding:
+        return []
+
+    try:
+        active_db = db if db is not None else get_sync_db()
+
+        # Fetch all complaint embeddings
+        emb_docs = list(active_db[COMPLAINT_EMBEDDINGS_COLLECTION].find({}))
+        if not emb_docs:
+            return []
+
+        # Calculate similarity scores
+        scored_candidates: list[tuple[Any, float]] = []
+        for doc in emb_docs:
+            cand_emb = doc.get("embedding")
+            if not cand_emb:
+                continue
+            score = compute_cosine_similarity(embedding, cand_emb)
             if score >= threshold:
+                scored_candidates.append((doc.get("complaint_id"), score))
+
+        if not scored_candidates:
+            return []
+
+        # Sort descending by score and take top candidates
+        scored_candidates.sort(key=lambda x: x[1], reverse=True)
+        top_candidates = scored_candidates[:top_k]
+
+        # Resolve complaint details
+        candidate_ids = [cid for cid, _ in top_candidates]
+        complaints = list(
+            active_db[COMPLAINTS_COLLECTION].find({"_id": {"$in": candidate_ids}})
+        )
+        complaints_by_id = {c["_id"]: c for c in complaints}
+
+        results: list[dict[str, Any]] = []
+        for cid, score in top_candidates:
+            complaint = complaints_by_id.get(cid)
+            if complaint:
+                c_num = complaint.get("complaint_number") or str(complaint.get("_id", cid))
+                desc = complaint.get("description", "")
+                snippet = desc[:120] + "..." if len(desc) > 120 else desc
+                loc = complaint.get("address")
+                if not loc and complaint.get("latitude") and complaint.get("longitude"):
+                    loc = f"{complaint.get('latitude')}, {complaint.get('longitude')}"
+
+                c_date = complaint.get("created_at")
+                created_str = (
+                    c_date.isoformat()
+                    if isinstance(c_date, datetime)
+                    else str(c_date) if c_date else None
+                )
+
                 results.append(
                     {
-                        "complaint_id": cid,
+                        "complaint_id": str(c_num),
                         "similarity_score": round(score, 4),
-                        "category": None,
-                        "description_snippet": "",
-                        "location": None,
-                        "created_at": None,
+                        "category": complaint.get("category"),
+                        "description_snippet": snippet,
+                        "location": loc,
+                        "created_at": created_str,
                     }
                 )
-        results.sort(key=lambda r: r["similarity_score"], reverse=True)
-        return results[:top_k]
 
-    # Fallback: return pre-seeded mock data filtered by threshold
-    return [r for r in _MOCK_SIMILAR_RESULTS if r["similarity_score"] >= threshold][
-        :top_k
-    ]
+        return results
+    except Exception as exc:
+        logger.warning("search_similar_complaints DB error (%s), returning empty list", exc)
+        return []
 
 
 async def search_complaints_by_location(
     latitude: float,
     longitude: float,
     radius_km: float = 1.0,
+    db: Any = None,
 ) -> list[dict[str, Any]]:
-    """Find complaints within *radius_km* of the given coordinates.
-
-    Replace with: PostGIS spatial query.
+    """
+    Finds complaints within *radius_km* of the given coordinates using the canonical database.
     """
     logger.info(
         "search_complaints_by_location called (lat=%s, lon=%s, radius=%s km)",
@@ -122,14 +189,45 @@ async def search_complaints_by_location(
         longitude,
         radius_km,
     )
-    # Mock: return the pre-seeded list (all are "nearby")
-    return _MOCK_SIMILAR_RESULTS
+    active_db = db if db is not None else get_sync_db()
 
+    query = {
+        "latitude": {"$ne": None},
+        "longitude": {"$ne": None},
+    }
+    candidates = list(active_db[COMPLAINTS_COLLECTION].find(query))
 
-async def store_embedding(complaint_id: str, embedding: list[float]) -> None:
-    """Persist an embedding for later retrieval.
+    nearby_results: list[dict[str, Any]] = []
+    for c in candidates:
+        c_lat = c.get("latitude")
+        c_lon = c.get("longitude")
+        if c_lat is None or c_lon is None:
+            continue
 
-    Replace with: INSERT INTO complaint_embeddings ...
-    """
-    logger.info("store_embedding called for %s", complaint_id)
-    _MOCK_EMBEDDINGS[complaint_id] = embedding
+        dist_km = calculate_haversine_distance_km(latitude, longitude, float(c_lat), float(c_lon))
+        if dist_km <= radius_km:
+            c_num = c.get("complaint_number") or str(c.get("_id"))
+            desc = c.get("description", "")
+            snippet = desc[:120] + "..." if len(desc) > 120 else desc
+            loc = c.get("address") or f"{c_lat}, {c_lon}"
+            c_date = c.get("created_at")
+            created_str = (
+                c_date.isoformat()
+                if isinstance(c_date, datetime)
+                else str(c_date) if c_date else None
+            )
+
+            nearby_results.append(
+                {
+                    "complaint_id": str(c_num),
+                    "distance_km": round(dist_km, 3),
+                    "similarity_score": 1.0,  # Spatial match
+                    "category": c.get("category"),
+                    "description_snippet": snippet,
+                    "location": loc,
+                    "created_at": created_str,
+                }
+            )
+
+    nearby_results.sort(key=lambda x: x.get("distance_km", 0.0))
+    return nearby_results

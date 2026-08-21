@@ -6,8 +6,7 @@ import logging
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException
 
-# from agents.status_explainer_agent import explain_status
-from db.database import get_db
+from db.database import get_db, COMPLAINTS_COLLECTION
 from schemas.models import Case, StatusResponse
 
 log = logging.getLogger(__name__)
@@ -26,7 +25,7 @@ async def get_case_status(case_id: str):
     db = get_db()
 
     try:
-        case_doc = await db.cases.find_one({"_id": ObjectId(case_id)})
+        case_doc = await db[COMPLAINTS_COLLECTION].find_one({"_id": ObjectId(case_id)})
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid case ID format")
 
@@ -34,9 +33,12 @@ async def get_case_status(case_id: str):
         raise HTTPException(status_code=404, detail="Case not found")
 
     case_doc["_id"] = str(case_doc["_id"])
+    if "complaint_id" not in case_doc and "complaint_number" in case_doc:
+        case_doc["complaint_id"] = case_doc["complaint_number"]
+
     case = Case(**case_doc)
 
-    # Use the pre-generated citizen message from the pipeline
+    # Use the pre-generated citizen message from the pipeline or fallback
     message = case_doc.get("citizen_message", "Your complaint is currently being processed.")
 
     return StatusResponse(
@@ -60,7 +62,12 @@ async def get_case_status(case_id: str):
 async def get_status_by_complaint(complaint_id: str):
     """Look up a case by complaint_id and return status."""
     db = get_db()
-    case_doc = await db.cases.find_one({"complaint_id": complaint_id})
+    case_doc = await db[COMPLAINTS_COLLECTION].find_one({
+        "$or": [
+            {"complaint_id": complaint_id},
+            {"complaint_number": complaint_id},
+        ]
+    })
 
     if not case_doc:
         raise HTTPException(
@@ -69,6 +76,9 @@ async def get_status_by_complaint(complaint_id: str):
         )
 
     case_doc["_id"] = str(case_doc["_id"])
+    if "complaint_id" not in case_doc and "complaint_number" in case_doc:
+        case_doc["complaint_id"] = case_doc["complaint_number"]
+
     case = Case(**case_doc)
 
     message = case_doc.get("citizen_message", "Your complaint is currently being processed.")

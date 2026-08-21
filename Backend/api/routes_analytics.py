@@ -6,6 +6,7 @@ import logging
 from fastapi import APIRouter, Query
 
 from schemas.models import AnalyticsHotspot, DepartmentStats
+from db.database import get_db, COMPLAINTS_COLLECTION
 
 log = logging.getLogger(__name__)
 
@@ -23,22 +24,22 @@ async def get_recurring_hotspots(
 ):
     """
     Aggregate complaints by location to find hotspots.
-
-    Stubbed: returns cases grouped by ward. Real version would
-    use geo-clustering (e.g., DBSCAN on coordinates).
     """
     db = get_db()
 
     pipeline = [
-        {"$match": {"location": {"$ne": None}}},
+        {"$match": {"latitude": {"$ne": None}, "longitude": {"$ne": None}}},
         {
             "$group": {
-                "_id": "$location.ward",
-                "total_complaints": {"$sum": "$citizen_count"},
+                "_id": {
+                    "address": "$address",
+                    "category": "$category",
+                },
+                "total_complaints": {"$sum": 1},
                 "open_cases": {
                     "$sum": {
                         "$cond": [
-                            {"$in": ["$status", ["submitted", "under_review", "assigned", "in_progress"]]},
+                            {"$in": ["$status", ["submitted", "under_review", "assigned", "in_progress", "SUBMITTED", "PROCESSING", "CLASSIFIED", "PRIORITIZED", "ASSIGNED", "IN_PROGRESS", "ESCALATED"]]},
                             1, 0,
                         ]
                     }
@@ -46,39 +47,41 @@ async def get_recurring_hotspots(
                 "resolved_cases": {
                     "$sum": {
                         "$cond": [
-                            {"$in": ["$status", ["resolved", "closed"]]},
+                            {"$in": ["$status", ["resolved", "closed", "RESOLVED"]]},
                             1, 0,
                         ]
                     }
                 },
                 "top_category": {"$first": "$category"},
-                "complaint_ids": {"$push": "$complaint_id"},
-                "sample_location": {"$first": "$location"},
+                "complaint_ids": {"$push": {"$ifNull": ["$complaint_id", "$complaint_number"]}},
+                "sample_lat": {"$first": "$latitude"},
+                "sample_lng": {"$first": "$longitude"},
+                "sample_address": {"$first": "$address"},
             }
         },
         {"$sort": {"total_complaints": -1}},
         {"$limit": limit},
     ]
 
-    results = await db.cases.aggregate(pipeline).to_list(limit)
+    results = await db[COMPLAINTS_COLLECTION].aggregate(pipeline).to_list(limit)
 
     hotspots = []
     for r in results:
-        loc = r.get("sample_location", {})
+        addr = r.get("sample_address") or (r["_id"]["address"] if isinstance(r["_id"], dict) else "General Area")
         hotspots.append(
             AnalyticsHotspot(
                 location={
-                    "lat": loc.get("lat", 0),
-                    "lng": loc.get("lng", 0),
-                    "address": loc.get("address"),
-                    "ward": r["_id"],
-                    "zone": loc.get("zone"),
+                    "lat": r.get("sample_lat", 0),
+                    "lng": r.get("sample_lng", 0),
+                    "address": addr,
+                    "ward": addr,
+                    "zone": None,
                 },
                 total_complaints=r["total_complaints"],
                 open_cases=r["open_cases"],
                 resolved_cases=r["resolved_cases"],
                 top_category=r["top_category"],
-                complaint_ids=r.get("complaint_ids", [])[:10],  # cap for response size
+                complaint_ids=[str(cid) for cid in r.get("complaint_ids", [])[:10]],
             )
         )
 
@@ -98,40 +101,40 @@ async def get_department_leaderboard():
     pipeline = [
         {
             "$group": {
-                "_id": "$department",
+                "_id": {"$ifNull": ["$department", "$category"]},
                 "total_cases": {"$sum": 1},
                 "open_cases": {
                     "$sum": {
                         "$cond": [
-                            {"$in": ["$status", ["submitted", "under_review", "assigned"]]},
+                            {"$in": ["$status", ["submitted", "under_review", "assigned", "SUBMITTED", "PROCESSING", "CLASSIFIED", "PRIORITIZED", "ASSIGNED"]]},
                             1, 0,
                         ]
                     }
                 },
                 "in_progress": {
-                    "$sum": {"$cond": [{"$eq": ["$status", "in_progress"]}, 1, 0]}
+                    "$sum": {"$cond": [{"$in": ["$status", ["in_progress", "IN_PROGRESS"]]}, 1, 0]}
                 },
                 "resolved": {
                     "$sum": {
                         "$cond": [
-                            {"$in": ["$status", ["resolved", "closed"]]},
+                            {"$in": ["$status", ["resolved", "closed", "RESOLVED"]]},
                             1, 0,
                         ]
                     }
                 },
                 "escalated": {
-                    "$sum": {"$cond": [{"$eq": ["$status", "escalated"]}, 1, 0]}
+                    "$sum": {"$cond": [{"$in": ["$status", ["escalated", "ESCALATED"]]}, 1, 0]}
                 },
             }
         },
         {"$sort": {"resolved": -1}},
     ]
 
-    results = await db.cases.aggregate(pipeline).to_list(50)
+    results = await db[COMPLAINTS_COLLECTION].aggregate(pipeline).to_list(50)
 
     return [
         DepartmentStats(
-            department=r["_id"],
+            department=r["_id"] or "Unassigned",
             total_cases=r["total_cases"],
             open_cases=r["open_cases"],
             in_progress=r["in_progress"],
@@ -139,6 +142,7 @@ async def get_department_leaderboard():
             escalated=r["escalated"],
         )
         for r in results
+        if r["_id"] is not None
     ]
 
 
