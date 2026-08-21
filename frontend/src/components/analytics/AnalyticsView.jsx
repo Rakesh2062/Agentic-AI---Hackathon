@@ -48,13 +48,80 @@ export function AnalyticsView() {
     loadAnalytics();
   }, [demoMode]);
 
-  const categoryBreakdown = [
-    { name: "Roads & Pavements", category: Category.ROADS, count: 48, percentage: 32, color: "bg-sky-500" },
-    { name: "Water & Sewage", category: Category.WATER, count: 36, percentage: 24, color: "bg-blue-500" },
-    { name: "Solid Waste Management", category: Category.WASTE, count: 28, percentage: 19, color: "bg-emerald-500" },
-    { name: "Street Lighting & Power", category: Category.STREETLIGHT, count: 22, percentage: 15, color: "bg-amber-500" },
-    { name: "Stormwater Drainage", category: Category.DRAINAGE, count: 16, percentage: 10, color: "bg-cyan-500" },
-  ];
+  // Dynamically compute Category Distribution from actual submitted cases
+  const categoryCounts = React.useMemo(() => {
+    const counts = {};
+    allCases.forEach((c) => {
+      const cat = c.category || Category.OTHER;
+      counts[cat] = (counts[cat] || 0) + 1;
+    });
+    return counts;
+  }, [allCases]);
+
+  const totalCaseCount = allCases.length || 1;
+
+  const categoryBreakdown = React.useMemo(() => {
+    const list = [
+      { name: "Roads & Pavements", category: Category.ROADS, color: "bg-sky-500" },
+      { name: "Water & Sewage", category: Category.WATER, color: "bg-blue-500" },
+      { name: "Solid Waste Management", category: Category.WASTE, color: "bg-emerald-500" },
+      { name: "Street Lighting & Power", category: Category.STREETLIGHT, color: "bg-amber-500" },
+      { name: "Stormwater Drainage", category: Category.DRAINAGE, color: "bg-cyan-500" },
+      { name: "Other / General", category: Category.OTHER, color: "bg-purple-500" },
+    ];
+
+    return list.map((item) => {
+      const count = categoryCounts[item.category] || 0;
+      const percentage = Math.round((count / totalCaseCount) * 100);
+      return { ...item, count, percentage };
+    });
+  }, [categoryCounts, totalCaseCount]);
+
+  // Dynamically compute Ward Hotspots from actual submitted cases
+  const dynamicHotspots = React.useMemo(() => {
+    const wardMap = {};
+    allCases.forEach((c) => {
+      const wardName = c.location?.ward || c.location?.address || "Downtown Metropolitan Ward";
+      if (!wardMap[wardName]) {
+        wardMap[wardName] = {
+          ward: wardName,
+          complaint_count: 0,
+          categories: {},
+          top_issue: c.summary || c.raw_text || "Civic report",
+          hasCritical: false,
+        };
+      }
+      wardMap[wardName].complaint_count += 1;
+      const cat = c.category || Category.OTHER;
+      wardMap[wardName].categories[cat] = (wardMap[wardName].categories[cat] || 0) + 1;
+      if (c.priority === "CRITICAL" || c.priority === "HIGH") {
+        wardMap[wardName].hasCritical = true;
+      }
+    });
+
+    const result = Object.values(wardMap).map((w) => {
+      // find primary category
+      let maxCat = Category.ROADS;
+      let maxCount = 0;
+      Object.entries(w.categories).forEach(([catKey, countVal]) => {
+        if (countVal > maxCount) {
+          maxCount = countVal;
+          maxCat = catKey;
+        }
+      });
+
+      return {
+        ward: w.ward,
+        complaint_count: w.complaint_count,
+        primary_category: maxCat,
+        risk_level: w.hasCritical ? "HIGH" : "MEDIUM",
+        avg_sla_hours: w.hasCritical ? 12.0 : 24.0,
+        top_issue: w.top_issue,
+      };
+    });
+
+    return result.length > 0 ? result : hotspots;
+  }, [allCases, hotspots]);
 
   return (
     <div className="space-y-6">
@@ -188,7 +255,7 @@ export function AnalyticsView() {
           </p>
 
           <div className="space-y-3">
-            {hotspots.map((hotspot, idx) => {
+            {dynamicHotspots.map((hotspot, idx) => {
               const isSelected = selectedWardForMap === hotspot.ward;
 
               return (
