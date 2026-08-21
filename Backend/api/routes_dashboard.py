@@ -2,12 +2,12 @@
 Dashboard routes — department-facing case queues and state transitions.
 """
 
+import logging
 from datetime import datetime
 
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException, Query
 
-from db.database import get_db
 from schemas.models import (
     CaseResponse,
     CaseUpdateRequest,
@@ -15,10 +15,20 @@ from schemas.models import (
     Status,
     StatusUpdate,
 )
-from utils.constants import CATEGORY_DEPARTMENT_MAP, STATUS_MESSAGES
-from utils.logger import get_logger
+from agents.config import CATEGORY_DEPARTMENT_MAP
 
-log = get_logger(__name__)
+log = logging.getLogger(__name__)
+
+STATUS_MESSAGES = {
+    "submitted": "Complaint submitted and queued for processing.",
+    "under_review": "Your complaint is under official review.",
+    "assigned": "Assigned to {department} for field dispatch.",
+    "in_progress": "{department} crew is actively working on this.",
+    "inspected": "Field supervisor inspection completed.",
+    "resolved": "Issue resolved by {department}.",
+    "closed": "Case archived after successful resolution.",
+    "escalated": "Escalated to senior municipal leadership.",
+}
 
 router = APIRouter(prefix="/dashboard", tags=["Department Dashboard"])
 

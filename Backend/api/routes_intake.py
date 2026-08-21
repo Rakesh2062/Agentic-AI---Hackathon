@@ -2,14 +2,14 @@
 Intake routes — citizen-facing complaint submission + retrieval.
 """
 
+import logging
 from fastapi import APIRouter, HTTPException, status
 
 from agents.orchestrator import Orchestrator
 from db.database import get_db
 from schemas.models import CaseResponse, ComplaintCreate
-from utils.logger import get_logger
 
-log = get_logger(__name__)
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/complaints", tags=["Complaints"])
 
@@ -19,12 +19,15 @@ router = APIRouter(prefix="/complaints", tags=["Complaints"])
     response_model=CaseResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Submit a new civic complaint",
-    description="Accepts text, optional images, and geolocation. "
-    "Runs the full agentic pipeline and returns a structured Case.",
+    description=(
+        "Accepts text, optional images, and geolocation. "
+        "Runs the full agentic pipeline (Classification → Duplicate → Priority → Routing) "
+        "and returns a structured case with AI recommendations."
+    ),
 )
 async def create_complaint(submission: ComplaintCreate):
-    """Run the orchestrator pipeline end-to-end."""
-    log.info("POST /complaints — text: %s…", submission.raw_text[:60])
+    """Run the full orchestrator pipeline end-to-end."""
+    log.info("POST /complaints — text: %.60s…", submission.raw_text)
     try:
         orchestrator = Orchestrator()
         result = await orchestrator.process_complaint(submission.model_dump())
@@ -54,7 +57,7 @@ async def create_complaint(submission: ComplaintCreate):
     "/{complaint_id}",
     response_model=CaseResponse,
     summary="Get case by complaint ID",
-    description="Retrieve the case associated with a complaint.",
+    description="Retrieve the case associated with a complaint. (Requires DB layer)",
 )
 async def get_complaint_case(complaint_id: str):
     """Look up the case created from a specific complaint."""
