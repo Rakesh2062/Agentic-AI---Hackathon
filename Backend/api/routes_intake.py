@@ -4,7 +4,7 @@ Intake routes — citizen-facing complaint submission + retrieval.
 
 from fastapi import APIRouter, HTTPException, status
 
-from agents.orchestrator import run_pipeline
+from agents.orchestrator import Orchestrator
 from db.database import get_db
 from schemas.models import CaseResponse, ComplaintCreate
 from utils.logger import get_logger
@@ -26,8 +26,22 @@ async def create_complaint(submission: ComplaintCreate):
     """Run the orchestrator pipeline end-to-end."""
     log.info("POST /complaints — text: %s…", submission.raw_text[:60])
     try:
-        case = await run_pipeline(submission)
-        return case
+        orchestrator = Orchestrator()
+        result = await orchestrator.process_complaint(submission.model_dump())
+        
+        if not result.success:
+            raise HTTPException(status_code=400, detail=f"Processing errors: {result.errors}")
+            
+        case_data = result.state.model_dump()
+        
+        # Insert into DB
+        db = get_db()
+        inserted = await db.cases.insert_one(case_data)
+        case_data["_id"] = str(inserted.inserted_id)
+        
+        return case_data
+    except HTTPException:
+        raise
     except Exception as e:
         log.exception("Pipeline failed: %s", e)
         raise HTTPException(
@@ -54,5 +68,4 @@ async def get_complaint_case(complaint_id: str):
         )
 
     case_doc["_id"] = str(case_doc["_id"])
-    from agents.orchestrator import _doc_to_response
-    return _doc_to_response(case_doc)
+    return case_doc

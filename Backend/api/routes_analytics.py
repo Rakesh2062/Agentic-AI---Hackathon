@@ -141,3 +141,19 @@ async def get_department_leaderboard():
         )
         for r in results
     ]
+
+
+@router.get(
+    "/insights",
+    summary="AI-Generated Analytics Insights",
+    description="Run the AI Analytics Agent to detect trends and insights.",
+)
+async def get_ai_insights(department: str | None = None):
+    """Trigger the Orchestrator to run the analytics agent."""
+    from agents.orchestrator import Orchestrator
+    
+    orchestrator = Orchestrator()
+    filters = {"department": department} if department else {}
+    
+    result = await orchestrator.run_analytics(filters=filters)
+    return result.model_dump()
