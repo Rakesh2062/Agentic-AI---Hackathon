@@ -25,6 +25,7 @@ export function AnalyticsView() {
   const [metrics, setMetrics] = useState(null);
   const [allCases, setAllCases] = useState([]);
   const [selectedWardForMap, setSelectedWardForMap] = useState("Ward 4 - Central West");
+  const [selectedCategoryForMap, setSelectedCategoryForMap] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -160,6 +161,7 @@ export function AnalyticsView() {
           mode="heatmap"
           existingCases={allCases}
           selectedWard={selectedWardForMap}
+          selectedCategory={selectedCategoryForMap}
           height="h-80 sm:h-96"
         />
       </div>
@@ -192,7 +194,10 @@ export function AnalyticsView() {
               return (
                 <div
                   key={idx}
-                  onClick={() => setSelectedWardForMap(hotspot.ward)}
+                  onClick={() => {
+                    setSelectedWardForMap(hotspot.ward);
+                    setSelectedCategoryForMap("");
+                  }}
                   className={`bg-slate-950/70 border rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 cursor-pointer transition ${
                     isSelected
                       ? "border-sky-500 bg-sky-950/20 shadow-glow-primary"
@@ -244,24 +249,33 @@ export function AnalyticsView() {
             <span className="text-xs text-slate-400 font-mono">100% Total</span>
           </div>
 
-          <div className="space-y-4 pt-1">
-            {categoryBreakdown.map((item, idx) => (
-              <div key={idx} className="space-y-1.5">
+          <div className="space-y-3 pt-1">
+            {categoryBreakdown.map((item, idx) => {
+              const isSelected = selectedCategoryForMap === item.category;
+              return (
+              <div 
+                key={idx} 
+                onClick={() => {
+                  setSelectedCategoryForMap(isSelected ? "" : item.category);
+                  if (!isSelected) setSelectedWardForMap("");
+                }}
+                className={`space-y-1.5 p-3 rounded-xl cursor-pointer transition border ${isSelected ? "border-sky-500 bg-sky-950/20 shadow-glow-primary" : "border-slate-800 bg-slate-950/40 hover:border-slate-700"}`}
+              >
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-slate-200">{item.name}</span>
+                  <span className={`font-bold ${isSelected ? "text-sky-300" : "text-slate-200"}`}>{item.name}</span>
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-slate-400">{item.count}</span>
                     <span className="font-mono font-bold text-slate-100">{item.percentage}%</span>
                   </div>
                 </div>
-                <div className="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+                <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-800">
                   <div
                     className={`h-full rounded-full ${item.color}`}
                     style={{ width: `${item.percentage}%` }}
                   />
                 </div>
               </div>
-            ))}
+            )})}
           </div>
 
           {/* AI Pipeline Efficiency Note */}

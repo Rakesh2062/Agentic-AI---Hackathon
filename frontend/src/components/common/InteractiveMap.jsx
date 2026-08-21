@@ -52,6 +52,8 @@ export function InteractiveMap({
   initialZoom = 13,
   existingCases = [],
   selectedCase = null,
+  selectedWard = "",
+  selectedCategory = "",
   height = "h-80 sm:h-96",
   onMarkerClick = null,
 }) {
@@ -423,10 +425,30 @@ export function InteractiveMap({
 
     if (!existingCases || existingCases.length === 0) return;
 
-    existingCases.forEach((c) => {
+    let casesToRender = existingCases;
+
+    if (selectedWard) {
+      casesToRender = casesToRender.filter(
+        (c) =>
+          c.location?.ward === selectedWard ||
+          (c.location?.address || "").includes(selectedWard.split(" ")[0])
+      );
+    } else if (selectedCategory) {
+      casesToRender = casesToRender.filter(
+        (c) => c.category === selectedCategory
+      );
+    }
+
+    const bounds = L.latLngBounds();
+    let hasValidCoords = false;
+
+    casesToRender.forEach((c) => {
       const lat = c.location?.lat;
       const lng = c.location?.lng;
       if (typeof lat !== "number" || typeof lng !== "number") return;
+
+      hasValidCoords = true;
+      bounds.extend([lat, lng]);
 
       const markerColor =
         c.status === Status.RESOLVED || c.status === Status.CLOSED
@@ -489,7 +511,11 @@ export function InteractiveMap({
 
       complaintMarkersRef.current.push(marker);
     });
-  }, [existingCases, mapLoaded, onMarkerClick]);
+
+    if (hasValidCoords && (selectedWard || selectedCategory) && mode === "heatmap") {
+      mapInstanceRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+    }
+  }, [existingCases, mapLoaded, onMarkerClick, selectedWard, selectedCategory, mode]);
 
   // Select a suggestion from the dropdown
   const handleSelectSuggestion = useCallback(
