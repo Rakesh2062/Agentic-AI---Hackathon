@@ -225,6 +225,48 @@ export function CaseDetailModal({ isOpen, onClose, caseItem, onCaseUpdated }) {
           </div>
         </div>
 
+        {/* User Attached Evidence / Images */}
+        <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-4 sm:p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <Camera className="w-3.5 h-3.5 text-sky-400" /> Attached Evidence
+            </span>
+            <span className="text-xs font-mono text-slate-400">
+              {caseItem.attachments?.length || 0} files
+            </span>
+          </div>
+
+          {caseItem.attachments && caseItem.attachments.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {caseItem.attachments.map((file, idx) => (
+                <div key={idx} className="relative group rounded-lg overflow-hidden border border-slate-800 bg-slate-900 aspect-video">
+                  {file.type === "image" || file.type?.startsWith("image/") ? (
+                    <a href={file.url} target="_blank" rel="noreferrer" className="block w-full h-full">
+                      <img
+                        src={file.url}
+                        alt={file.name || "Evidence attachment"}
+                        className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                        <span className="text-xs font-bold text-white bg-black/50 px-2 py-1 rounded backdrop-blur">View</span>
+                      </div>
+                    </a>
+                  ) : (
+                    <a href={file.url} target="_blank" rel="noreferrer" className="flex flex-col items-center justify-center w-full h-full p-2 hover:bg-slate-800 transition text-slate-300 hover:text-sky-400">
+                      <FileCheck2 className="w-6 h-6 mb-1" />
+                      <span className="text-[10px] text-center truncate w-full px-2">{file.name || "Document"}</span>
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center p-6 bg-slate-900/50 rounded-lg border border-slate-800 border-dashed">
+              <span className="text-sm text-slate-500 font-medium">No image attached</span>
+            </div>
+          )}
+        </div>
+
         {/* Official Civic Validation & Point Awarding Engine */}
         <div className="bg-gradient-to-r from-emerald-950/40 via-slate-900 to-sky-950/40 border border-emerald-800/60 rounded-2xl p-5 shadow-xl space-y-4">
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
