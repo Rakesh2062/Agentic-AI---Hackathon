@@ -28,6 +28,7 @@ import { useAuth } from "../../context/AuthContext";
 import { Category, CategoryLabels, Priority } from "../../utils/constants";
 import { ComplaintSuccess } from "./ComplaintSuccess";
 import { GoogleMapsPicker } from "../common/GoogleMapsPicker";
+import { AgentPipelineOverlay } from "../common/AgentPipelineOverlay";
 
 const QUICK_PROMPTS = [
   {
@@ -332,6 +333,7 @@ export function ComplaintForm() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
+      <AgentPipelineOverlay isVisible={isSubmitting} />
       
       {/* Header Info */}
       <div className="text-center mb-6">
