@@ -120,8 +120,8 @@ export function AnalyticsView() {
       };
     });
 
-    return result.length > 0 ? result : hotspots;
-  }, [allCases, hotspots]);
+    return result;
+  }, [allCases]);
 
   return (
     <div className="space-y-6">
