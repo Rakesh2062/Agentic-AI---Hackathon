@@ -2,7 +2,7 @@ import logging
 from fastapi import APIRouter, HTTPException, status
 
 from agents.orchestrator import Orchestrator
-from database.connection import get_db
+from database.connection import get_async_db as get_db
 from database.collections import COMPLAINTS_COLLECTION
 from schemas.models import CaseResponse, ComplaintCreate
 
@@ -29,9 +29,6 @@ async def create_complaint(submission: ComplaintCreate):
         orchestrator = Orchestrator()
         result = await orchestrator.process_complaint(submission.to_agent_dict())
         
-        if not result.success:
-            raise HTTPException(status_code=400, detail=f"Processing errors: {result.errors}")
-            
         case_data = result.state.model_dump()
         
         # Ensure canonical schema compatibility
