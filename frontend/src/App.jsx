@@ -5,6 +5,7 @@ import { AppProvider, useApp } from "./context/AppContext";
 import { Navbar } from "./components/common/Navbar";
 import { Toast } from "./components/common/Toast";
 import { PointAwardToast } from "./components/common/PointAwardToast";
+import { PublicLandingPage } from "./components/landing/PublicLandingPage";
 import { LandingGate } from "./components/auth/LandingGate";
 import { AuthModal } from "./components/auth/AuthModal";
 import { CitizenPortal } from "./components/citizen/CitizenPortal";
@@ -22,10 +23,11 @@ import {
   Globe2,
   HeartHandshake
 } from "lucide-react";
+import { NagarSetuLogo } from "./components/common/NagarSetuLogo";
 
-function MainAppContent({ onOpenLanding }) {
+function MainAppContent() {
   const { activeTab, setActiveTab, setCitizenSubTab } = useApp();
-  const { currentUser, isOfficial, isCivilian, isTourist } = useAuth();
+  const { currentUser, isOfficial } = useAuth();
 
   // Redirect to role home on login
   useEffect(() => {
@@ -38,15 +40,6 @@ function MainAppContent({ onOpenLanding }) {
       }
     }
   }, [currentUser?.id, currentUser?.role]);
-
-  // If no user is logged in, show Landing Gateway
-  if (!currentUser) {
-    return (
-      <div className="flex-1 flex flex-col justify-center">
-        <LandingGate />
-      </div>
-    );
-  }
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
@@ -97,59 +90,40 @@ function ProfessionalFooter() {
           {/* Brand Col */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-sky-600 flex items-center justify-center text-white">
-                <Building2 className="w-4 h-4" />
+              <div className="w-7 h-7 rounded-lg bg-sky-600 flex items-center justify-center text-white p-1">
+                <NagarSetuLogo className="w-5 h-5" />
               </div>
-              <span className="font-extrabold text-base text-white tracking-tight">
-                Civic<span className="text-sky-400">Pulse</span> AI
+              <span className="font-extrabold text-base tracking-tight text-white uppercase">
+                NAGAR<span className="text-sky-400">SETU</span> <span className="text-xs font-bold text-sky-300/90 font-sans ml-1">नगरसेतु</span>
               </span>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Agentic Civic Intelligence for Smarter, Safer Communities.
+              Empowering proactive civic participation and rapid infrastructure resolution with real-time AI triage.
             </p>
-            <div className="pt-1 text-[11px] text-slate-500 space-y-1">
-              <p className="flex items-center gap-1.5">
-                <Mail className="w-3.5 h-3.5 text-slate-400" />
-                <span>support@civicpulse.ai</span>
-              </p>
-              <p className="flex items-center gap-1.5">
-                <Phone className="w-3.5 h-3.5 text-slate-400" />
-                <span>+91 80000 12345</span>
-              </p>
+            <div className="flex items-center gap-1 text-[11px] text-emerald-400 font-mono">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Municipal Data Certified • 256-bit SSL</span>
             </div>
           </div>
 
-          {/* Quick Links */}
-          <div>
-            <h4 className="font-bold text-slate-200 uppercase tracking-wider mb-3 text-xs">
-              Quick Links
+          {/* Quick Access */}
+          <div className="space-y-3">
+            <h4 className="font-bold text-slate-200 uppercase tracking-wider text-xs">
+              Portal Access
             </h4>
-            <ul className="space-y-2 text-xs">
+            <ul className="space-y-2">
               {!isOfficial && (
-                <>
-                  <li>
-                    <button
-                      onClick={() => {
-                        setActiveTab("citizen");
-                        setCitizenSubTab("report");
-                      }}
-                      className="hover:text-white transition"
-                    >
-                      Citizen Portal
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      onClick={() => {
-                        setActiveTab("citizen");
-                        setCitizenSubTab("my_reports");
-                      }}
-                      className="hover:text-white transition"
-                    >
-                      My Reports
-                    </button>
-                  </li>
-                </>
+                <li>
+                  <button
+                    onClick={() => {
+                      setActiveTab("citizen");
+                      if (setCitizenSubTab) setCitizenSubTab("report");
+                    }}
+                    className="hover:text-white transition"
+                  >
+                    File an Incident
+                  </button>
+                </li>
               )}
               {isOfficial && (
                 <li>
@@ -166,37 +140,34 @@ function ProfessionalFooter() {
                   onClick={() => setActiveTab("analytics")}
                   className="hover:text-white transition"
                 >
-                  City Analytics
+                  City Analytics & Heatmap
                 </button>
               </li>
               <li>
-                <span className="text-slate-500">Help Center & SLA Policy</span>
+                <button
+                  onClick={() => {
+                    setActiveTab("citizen");
+                    if (setCitizenSubTab) setCitizenSubTab("rewards");
+                  }}
+                  className="hover:text-white transition"
+                >
+                  Civic Leaderboard
+                </button>
               </li>
             </ul>
           </div>
 
-          {/* For Citizens */}
-          <div>
-            <h4 className="font-bold text-slate-200 uppercase tracking-wider mb-3 text-xs">
-              For Citizens & Visitors
+          {/* Citizen Resources */}
+          <div className="space-y-3">
+            <h4 className="font-bold text-slate-200 uppercase tracking-wider text-xs">
+              Citizen Trust
             </h4>
-            <ul className="space-y-2 text-xs">
+            <ul className="space-y-2">
               <li>
                 <button
                   onClick={() => {
                     setActiveTab("citizen");
-                    setCitizenSubTab("report");
-                  }}
-                  className="hover:text-white transition"
-                >
-                  Report a Civic Issue
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => {
-                    setActiveTab("citizen");
-                    setCitizenSubTab("track");
+                    if (setCitizenSubTab) setCitizenSubTab("tracker");
                   }}
                   className="hover:text-white transition"
                 >
@@ -302,7 +273,7 @@ function ProfessionalFooter() {
 
         {/* Footer Bottom Bar */}
         <div className="pt-6 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500">
-          <p>© 2026 CivicPulse AI. Building better communities through intelligent civic participation.</p>
+          <p>© 2026 NAGARSETU. Building better communities through intelligent civic participation.</p>
           
           <div className="flex items-center gap-4">
             <span className="hover:text-slate-400 cursor-pointer">Privacy Policy</span>
@@ -316,22 +287,67 @@ function ProfessionalFooter() {
   );
 }
 
+function MainAppShell() {
+  const { currentUser } = useAuth();
+  const [showAuthGateway, setShowAuthGateway] = useState(false);
+
+  // When user logs in, ensure showAuthGateway resets
+  useEffect(() => {
+    if (currentUser) {
+      setShowAuthGateway(false);
+    }
+  }, [currentUser]);
+
+  // 1. Initial State: If not logged in & not on auth gateway, render the new Public Editorial Landing Page (NO footer)
+  if (!currentUser && !showAuthGateway) {
+    return (
+      <div className="min-h-screen flex flex-col bg-[#050811] text-slate-100 font-sans">
+        <PublicLandingPage onGetStarted={() => setShowAuthGateway(true)} />
+        <Toast />
+        <PointAwardToast />
+        <AuthModal />
+      </div>
+    );
+  }
+
+  // 2. Authentication Role Gateway State: If not logged in & clicked Get Started / Sign In, render Role Gateway (with Footer)
+  if (!currentUser && showAuthGateway) {
+    return (
+      <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 font-sans selection:bg-sky-500 selection:text-white">
+        <Navbar onOpenLanding={() => setShowAuthGateway(false)} />
+        <div className="flex-1 flex flex-col justify-center">
+          <LandingGate onBackToLanding={() => setShowAuthGateway(false)} />
+        </div>
+        <ProfessionalFooter />
+        <Toast />
+        <PointAwardToast />
+        <AuthModal />
+      </div>
+    );
+  }
+
+  // 3. Authenticated State: User is logged in, render main portal/ops
+  return (
+    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 font-sans selection:bg-sky-500 selection:text-white">
+      <Navbar onOpenLanding={() => setShowAuthGateway(false)} />
+      <div className="flex-1 flex flex-col">
+        <MainAppContent />
+      </div>
+      <ProfessionalFooter />
+      <Toast />
+      <PointAwardToast />
+      <AuthModal />
+    </div>
+  );
+}
+
 export default function App() {
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 
   const appContent = (
     <AuthProvider>
       <AppProvider>
-        <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 font-sans selection:bg-sky-500 selection:text-white">
-          <Navbar onOpenLanding={() => {}} />
-          <div className="flex-1 flex flex-col">
-            <MainAppContent />
-          </div>
-          <ProfessionalFooter />
-          <Toast />
-          <PointAwardToast />
-          <AuthModal />
-        </div>
+        <MainAppShell />
       </AppProvider>
     </AuthProvider>
   );

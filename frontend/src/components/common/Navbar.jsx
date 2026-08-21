@@ -12,9 +12,10 @@ import {
   ChevronDown, 
   Sparkles, 
   Menu, 
-  X,
-  FileText
+  X, 
+  FileText 
 } from "lucide-react";
+import { NagarSetuLogo } from "./NagarSetuLogo";
 
 export function Navbar({ onOpenLanding }) {
   const { 
@@ -44,21 +45,21 @@ export function Navbar({ onOpenLanding }) {
             className="flex items-center gap-3 cursor-pointer group"
           >
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-600 via-sky-500 to-emerald-400 p-0.5 shadow-glow-primary flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
-              <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
-                <Building2 className="w-5 h-5 text-sky-400" />
+              <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center p-1.5">
+                <NagarSetuLogo className="w-6 h-6" />
               </div>
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-lg sm:text-xl tracking-tight text-white font-sans">
-                  Civic<span className="text-sky-400">Pulse</span>
+                <span className="font-extrabold text-lg sm:text-xl tracking-tight text-white font-sans uppercase">
+                  NAGAR<span className="text-sky-400">SETU</span>
                 </span>
-                <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 bg-sky-950/80 text-sky-300 border border-sky-800 rounded font-semibold flex items-center gap-1">
-                  <Sparkles className="w-2.5 h-2.5 text-sky-400" /> AI
+                <span className="text-xs font-bold text-sky-300/90 font-sans">
+                  नगरसेतु
                 </span>
               </div>
               <p className="text-[11px] text-slate-400 hidden sm:block font-medium">
-                Agentic Civic Intelligence Platform
+                Civic Intelligence Platform
               </p>
             </div>
           </div>
