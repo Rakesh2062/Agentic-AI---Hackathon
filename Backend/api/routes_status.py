@@ -7,6 +7,7 @@ from bson import ObjectId
 from fastapi import APIRouter, HTTPException
 
 # from agents.status_explainer_agent import explain_status
+from db.database import get_db
 from schemas.models import Case, StatusResponse
 
 log = logging.getLogger(__name__)
