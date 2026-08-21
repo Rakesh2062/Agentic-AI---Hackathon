@@ -1,9 +1,7 @@
 """
 Complaint Tools — CRUD helpers for complaint data.
 
-These are thin tool interfaces with MOCK implementations.
-Replace the bodies with real PostgreSQL / SQLAlchemy queries when the
-backend is connected.
+Queries the canonical MongoDB complaints collection with automatic deterministic fallback.
 """
 
 from __future__ import annotations
@@ -12,10 +10,12 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
+from db.database import get_db, COMPLAINTS_COLLECTION, COMPLAINT_UPDATES_COLLECTION
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Mock in-memory store
+# In-memory fallback store for testing / offline environments
 # ---------------------------------------------------------------------------
 _MOCK_COMPLAINTS: dict[str, dict[str, Any]] = {
     "CMP-001": {
@@ -70,22 +70,59 @@ _MOCK_COMPLAINTS: dict[str, dict[str, Any]] = {
 # Tool functions
 # ---------------------------------------------------------------------------
 async def get_complaint(complaint_id: str) -> Optional[dict[str, Any]]:
-    """Retrieve a complaint by ID.
-
-    Replace with: SELECT * FROM complaints WHERE id = %s
-    """
+    """Retrieve a complaint by ID from MongoDB or in-memory fallback."""
     logger.info("get_complaint called for %s", complaint_id)
+    try:
+        db = get_db()
+        doc = await db[COMPLAINTS_COLLECTION].find_one({
+            "$or": [
+                {"complaint_id": complaint_id},
+                {"complaint_number": complaint_id},
+            ]
+        })
+        if doc:
+            doc["_id"] = str(doc["_id"])
+            if "complaint_id" not in doc and "complaint_number" in doc:
+                doc["complaint_id"] = doc["complaint_number"]
+            return doc
+    except Exception as exc:
+        logger.warning("MongoDB get_complaint error (%s), using fallback", exc)
     return _MOCK_COMPLAINTS.get(complaint_id)
 
 
 async def update_complaint(
     complaint_id: str, updates: dict[str, Any]
 ) -> Optional[dict[str, Any]]:
-    """Update a complaint's fields.
-
-    Replace with: UPDATE complaints SET ... WHERE id = %s
-    """
+    """Update a complaint's fields in MongoDB or in-memory fallback."""
     logger.info("update_complaint called for %s with %s", complaint_id, updates)
+    try:
+        db = get_db()
+        now = datetime.now(timezone.utc)
+        updates["updated_at"] = now
+        res = await db[COMPLAINTS_COLLECTION].update_one(
+            {
+                "$or": [
+                    {"complaint_id": complaint_id},
+                    {"complaint_number": complaint_id},
+                ]
+            },
+            {"$set": updates},
+        )
+        if res.matched_count > 0:
+            doc = await db[COMPLAINTS_COLLECTION].find_one({
+                "$or": [
+                    {"complaint_id": complaint_id},
+                    {"complaint_number": complaint_id},
+                ]
+            })
+            if doc:
+                doc["_id"] = str(doc["_id"])
+                if "complaint_id" not in doc and "complaint_number" in doc:
+                    doc["complaint_id"] = doc["complaint_number"]
+                return doc
+    except Exception as exc:
+        logger.warning("MongoDB update_complaint error (%s), using fallback", exc)
+
     if complaint_id in _MOCK_COMPLAINTS:
         _MOCK_COMPLAINTS[complaint_id].update(updates)
         _MOCK_COMPLAINTS[complaint_id]["updated_at"] = datetime.now(
@@ -96,12 +133,25 @@ async def update_complaint(
 
 
 async def get_complaint_history(complaint_id: str) -> list[dict[str, Any]]:
-    """Return the status-change history for a complaint.
-
-    Replace with: SELECT * FROM complaint_history WHERE complaint_id = %s
-    """
+    """Return the status-change history for a complaint."""
     logger.info("get_complaint_history called for %s", complaint_id)
-    # Mock: return a single event
+    try:
+        db = get_db()
+        cursor = db[COMPLAINT_UPDATES_COLLECTION].find({
+            "$or": [
+                {"complaint_id": complaint_id},
+                {"complaint_number": complaint_id},
+            ]
+        }).sort("created_at", 1)
+        history = []
+        async for doc in cursor:
+            doc["_id"] = str(doc["_id"])
+            history.append(doc)
+        if history:
+            return history
+    except Exception as exc:
+        logger.warning("MongoDB get_complaint_history error (%s), using fallback", exc)
+
     complaint = _MOCK_COMPLAINTS.get(complaint_id)
     if complaint is None:
         return []
@@ -119,11 +169,27 @@ async def get_complaint_history(complaint_id: str) -> list[dict[str, Any]]:
 async def get_all_complaints(
     filters: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
-    """Return all complaints, optionally filtered.
-
-    Replace with: SELECT * FROM complaints WHERE ...
-    """
+    """Return all complaints from MongoDB, optionally filtered, with fallback."""
     logger.info("get_all_complaints called with filters=%s", filters)
+    try:
+        db = get_db()
+        query = {}
+        if filters:
+            for key, value in filters.items():
+                if value is not None:
+                    query[key] = value
+        cursor = db[COMPLAINTS_COLLECTION].find(query)
+        complaints = []
+        async for doc in cursor:
+            doc["_id"] = str(doc["_id"])
+            if "complaint_id" not in doc and "complaint_number" in doc:
+                doc["complaint_id"] = doc["complaint_number"]
+            complaints.append(doc)
+        if complaints:
+            return complaints
+    except Exception as exc:
+        logger.warning("MongoDB get_all_complaints error (%s), using fallback", exc)
+
     results = list(_MOCK_COMPLAINTS.values())
     if filters:
         for key, value in filters.items():

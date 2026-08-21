@@ -34,8 +34,9 @@ def build_resolution_prompt(
     admin_action: str,
     resolution_notes: str = "",
     current_status: str = "",
+    sop_guidance: str = "",
 ) -> str:
-    """Build the user-facing prompt for the resolution agent."""
+    """Build the user-facing prompt for the resolution agent, augmented with RAG SOP guidance."""
     parts = [
         f"Complaint ID: {complaint_id}",
         f"Original issue: \"{description}\"",
@@ -49,6 +50,10 @@ def build_resolution_prompt(
         parts.append(f"Resolution notes: {resolution_notes}")
     else:
         parts.append("Resolution notes: None provided.")
+
+    if sop_guidance:
+        parts.append(f"\nApplicable Municipal SOP Guidance:\n{sop_guidance}")
+
     parts.append(
         "\nGenerate a resolution summary and citizen message. Return JSON only."
     )

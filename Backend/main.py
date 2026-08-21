@@ -6,6 +6,18 @@ Start with:
     uvicorn main:app --reload --port 8000
 """
 
+import os
+import sys
+import logging
+from contextlib import asynccontextmanager
+
+# Ensure Backend/ and workspace root are in sys.path for both local and root execution
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+workspace_root = os.path.abspath(os.path.join(backend_dir, ".."))
+for p in (backend_dir, workspace_root):
+    if p not in sys.path:
+        sys.path.insert(0, p)
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -13,6 +25,28 @@ from api.routes_intake import router as intake_router
 from api.routes_dashboard import router as dashboard_router
 from api.routes_analytics import router as analytics_router
 from api.routes_status import router as status_router
+from db.database import ping_async_db, close_async_client
+
+logger = logging.getLogger("civicpulse")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manages application lifecycle, validating DB connectivity and closing connection pools."""
+    logger.info("Starting CivicPulse AI Backend...")
+    try:
+        is_connected = await ping_async_db()
+        if is_connected:
+            logger.info("Connected to MongoDB successfully.")
+        else:
+            logger.warning("MongoDB ping failed; please check MONGODB_URI.")
+    except Exception as e:
+        logger.warning("MongoDB connection check encountered: %s", e)
+    yield
+    logger.info("Shutting down CivicPulse AI Backend...")
+    close_async_client()
+    logger.info("MongoDB async client closed.")
+
 
 app = FastAPI(
     title="CivicPulse AI Backend",
@@ -23,6 +57,7 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # ---------------------------------------------------------------------------
@@ -72,4 +107,8 @@ async def root():
 
 @app.get("/health", tags=["Health"])
 async def health():
-    return {"status": "ok"}
+    db_connected = await ping_async_db()
+    return {
+        "status": "ok" if db_connected else "degraded",
+        "database": "connected" if db_connected else "disconnected",
+    }

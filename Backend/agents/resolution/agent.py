@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from agents.config import BaseLLMClient
 from agents.schemas.agent_outputs import ResolutionResult
 from agents.state.complaint_state import AuditEvent, ComplaintState
+from agents.tools.search_tools import get_relevant_resolution_sop
 from agents.resolution.prompts import (
     RESOLUTION_SYSTEM_PROMPT,
     build_resolution_prompt,
@@ -21,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 class ResolutionAgent:
-    """Generate resolution summaries and citizen messages."""
+    """Generate resolution summaries and citizen messages grounded in municipal RAG SOP guidance."""
 
     NAME = "ResolutionAgent"
 
@@ -35,16 +36,31 @@ class ResolutionAgent:
         resolution_notes: str = "",
     ) -> ResolutionResult:
         started = datetime.now(timezone.utc)
+        sop_guidance_text = ""
         try:
+            # ── Retrieve Municipal SOP Guidance via RAG ──
+            category_str = state.category.value if state.category else ""
+            try:
+                sop_data = get_relevant_resolution_sop(
+                    complaint_text=state.description,
+                    category=category_str,
+                )
+                if sop_data and sop_data.get("has_guidance") and sop_data.get("resolution_guidance"):
+                    sop_guidance_text = sop_data.get("resolution_guidance", "")
+            except Exception as sop_exc:
+                logger.warning("RAG SOP retrieval in ResolutionAgent failed (continuing with baseline): %s", sop_exc)
+                sop_guidance_text = ""
+
             prompt = build_resolution_prompt(
                 complaint_id=state.complaint_id,
                 description=state.description,
-                category=state.category.value if state.category else "unknown",
+                category=category_str or "unknown",
                 priority=state.priority.value if state.priority else "unknown",
                 department=state.effective_department(),
                 admin_action=admin_action or "Status updated",
                 resolution_notes=resolution_notes,
                 current_status=state.current_status.value,
+                sop_guidance=sop_guidance_text,
             )
 
             raw = await self.llm.generate(
