@@ -2,13 +2,12 @@
 Analytics routes — recurring-problem hotspots, department leaderboard.
 """
 
+import logging
 from fastapi import APIRouter, Query
 
-from db.database import get_db
 from schemas.models import AnalyticsHotspot, DepartmentStats
-from utils.logger import get_logger
 
-log = get_logger(__name__)
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 

@@ -2,15 +2,14 @@
 Status routes — citizen-facing complaint tracking.
 """
 
+import logging
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException
 
 # from agents.status_explainer_agent import explain_status
-from db.database import get_db
 from schemas.models import Case, StatusResponse
-from utils.logger import get_logger
 
-log = get_logger(__name__)
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/status", tags=["Status Tracking"])
 
