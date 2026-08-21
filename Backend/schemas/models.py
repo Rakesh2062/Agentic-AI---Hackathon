@@ -237,10 +237,10 @@ class CaseResponse(BaseModel):
 
 class StatusResponse(BaseModel):
     """Citizen-facing status tracking response."""
-    case_id: Optional[str]
+    case_id: Optional[str] = None
     complaint_id: str
     status: Status
-    message: str
+    message: str = "Your complaint is currently being processed."
     department: Optional[str] = None
     priority: Optional[str] = None
     last_updated: Optional[datetime] = None

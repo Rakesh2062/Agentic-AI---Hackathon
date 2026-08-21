@@ -2,7 +2,8 @@ import logging
 from fastapi import APIRouter, HTTPException, status
 
 from agents.orchestrator import Orchestrator
-from db.database import get_db, COMPLAINTS_COLLECTION
+from database.connection import get_db
+from database.collections import COMPLAINTS_COLLECTION
 from schemas.models import CaseResponse, ComplaintCreate
 
 log = logging.getLogger(__name__)

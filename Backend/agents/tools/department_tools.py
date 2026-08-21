@@ -15,7 +15,8 @@ from agents.config import (
     SLA_HOURS,
 )
 
-from db.database import get_db, DEPARTMENTS_COLLECTION
+from database.connection import get_db
+from database.collections import DEPARTMENTS_COLLECTION
 
 logger = logging.getLogger(__name__)
 

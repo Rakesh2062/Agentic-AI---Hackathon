@@ -7,7 +7,7 @@ embeddings, updates, assignments, notifications, and escalations.
 import math
 import random
 from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from bson import ObjectId
 from pymongo.database import Database
 
