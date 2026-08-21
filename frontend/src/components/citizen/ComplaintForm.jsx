@@ -75,7 +75,7 @@ const QUICK_PROMPTS = [
 
 export function ComplaintForm() {
   const { demoMode, showToast, navigateToTrack } = useApp();
-  const { currentUser, isOfficial } = useAuth();
+  const { currentUser, isOfficial, recordComplaintSubmitted } = useAuth();
 
   // Form Fields
   const [title, setTitle] = useState("");
@@ -87,7 +87,7 @@ export function ComplaintForm() {
 
   // Location
   const [address, setAddress] = useState("");
-  const [ward, setWard] = useState("Ward 3 - Downtown Core");
+  const [ward, setWard] = useState("");
   const [coords, setCoords] = useState({ lat: 37.7749, lng: -122.4194 });
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [locationPinned, setLocationPinned] = useState(false);
@@ -286,6 +286,9 @@ export function ComplaintForm() {
 
     try {
       const response = await createComplaint(payload, demoMode);
+      if (recordComplaintSubmitted) {
+        recordComplaintSubmitted(currentUser?.id);
+      }
       setCreatedCase(response);
       setIsSubmitting(false);
 
@@ -616,18 +619,19 @@ export function ComplaintForm() {
               <label className="text-xs font-medium text-slate-400 block mb-1">
                 Municipal Ward / District
               </label>
-              <select
+              <input
+                type="text"
                 value={ward}
                 onChange={(e) => setWard(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-700/80 focus:border-sky-500 rounded-lg px-3.5 py-2 text-sm text-slate-100 outline-none"
-              >
-                <option value="Ward 1 - South Valley">Ward 1 - South Valley</option>
-                <option value="Ward 2 - North Heights">Ward 2 - North Heights</option>
-                <option value="Ward 3 - Downtown Core">Ward 3 - Downtown Core</option>
-                <option value="Ward 4 - Central West">Ward 4 - Central West</option>
-                <option value="Ward 5 - University District">Ward 5 - University District</option>
-                <option value="Ward 6 - Eastern Waterfront">Ward 6 - Eastern Waterfront</option>
-              </select>
+                placeholder="Auto-detected from map or type manually"
+                className="w-full bg-slate-900 border border-slate-700/80 focus:border-sky-500 rounded-lg px-3.5 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none"
+              />
+              {ward && (
+                <p className="text-[10px] text-emerald-400 mt-1 font-mono flex items-center gap-1">
+                  <MapPin className="w-3 h-3" />
+                  Ward detected from map location
+                </p>
+              )}
             </div>
           </div>
 

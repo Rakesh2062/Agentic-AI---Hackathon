@@ -1,5 +1,7 @@
 import React from "react";
 import { useAuth } from "../../context/AuthContext";
+import { UserRole } from "../../utils/constants";
+import { GoogleLoginButton } from "./GoogleLoginButton";
 import { 
   Building2, 
   UserCheck, 
@@ -7,17 +9,25 @@ import {
   ArrowRight, 
   Sparkles, 
   ShieldCheck, 
-  CheckCircle2,
-  LogIn,
-  UserPlus
+  CheckCircle2, 
+  LogIn, 
+  UserPlus 
 } from "lucide-react";
 
 export function LandingGate() {
-  const { setAuthModalOpen, setAuthModalMode } = useAuth();
+  const { setAuthModalOpen, setAuthModalMode, loginWithGoogle } = useAuth();
 
   const handleOpenAuth = (mode) => {
     setAuthModalMode(mode);
     setAuthModalOpen(true);
+  };
+
+  const handleGoogleSuccess = (credentialResponse, role) => {
+    try {
+      loginWithGoogle(credentialResponse, role);
+    } catch (err) {
+      console.error("Google login failed:", err);
+    }
   };
 
   return (
@@ -55,9 +65,13 @@ export function LandingGate() {
             </div>
 
             <div className="flex items-center gap-2 mb-2">
+              <span className="text-xl">👤</span>
               <h2 className="text-lg font-bold text-white uppercase tracking-wider">
-                Civilian / Resident
+                Civilian
               </h2>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
+                Resident
+              </span>
             </div>
 
             <p className="text-xs sm:text-sm text-slate-400 leading-relaxed mb-6">
@@ -98,6 +112,17 @@ export function LandingGate() {
               <UserPlus className="w-3.5 h-3.5" />
               <span>Create Account</span>
             </button>
+
+            <div className="relative flex items-center justify-center my-0.5">
+              <div className="border-t border-slate-800 w-full"></div>
+              <span className="bg-slate-900 px-2 text-[10px] uppercase text-slate-500 font-mono">or</span>
+            </div>
+
+            <GoogleLoginButton
+              onSuccess={(res) => handleGoogleSuccess(res, UserRole.CIVILIAN)}
+              onError={(err) => console.error("Google sign in error:", err)}
+              text="Continue with Google"
+            />
           </div>
         </div>
 
@@ -111,11 +136,12 @@ export function LandingGate() {
             </div>
             
             <div className="flex items-center gap-2 mb-2">
+              <span className="text-xl">🏛️</span>
               <h2 className="text-lg font-bold text-white uppercase tracking-wider">
-                Civic Official
+                Official
               </h2>
               <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-sky-950 text-sky-300 border border-sky-800">
-                Staff Only
+                Municipal Staff
               </span>
             </div>
 
@@ -164,9 +190,13 @@ export function LandingGate() {
             </div>
 
             <div className="flex items-center gap-2 mb-2">
+              <span className="text-xl">✈️</span>
               <h2 className="text-lg font-bold text-white uppercase tracking-wider">
-                Tourist / Visitor
+                Tourist
               </h2>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800">
+                Visitor
+              </span>
             </div>
 
             <p className="text-xs sm:text-sm text-slate-400 leading-relaxed mb-6">
@@ -189,7 +219,7 @@ export function LandingGate() {
             </ul>
           </div>
 
-          <div className="pt-2">
+          <div className="flex flex-col gap-2 pt-2">
             <button
               type="button"
               onClick={() => handleOpenAuth("tourist_auth")}
@@ -198,6 +228,17 @@ export function LandingGate() {
               <Plane className="w-4 h-4" />
               <span>Tourist Login / Register</span>
             </button>
+
+            <div className="relative flex items-center justify-center my-0.5">
+              <div className="border-t border-slate-800 w-full"></div>
+              <span className="bg-slate-900 px-2 text-[10px] uppercase text-slate-500 font-mono">or</span>
+            </div>
+
+            <GoogleLoginButton
+              onSuccess={(res) => handleGoogleSuccess(res, UserRole.TOURIST)}
+              onError={(err) => console.error("Google sign in error:", err)}
+              text="Continue with Google as Tourist"
+            />
           </div>
         </div>
 

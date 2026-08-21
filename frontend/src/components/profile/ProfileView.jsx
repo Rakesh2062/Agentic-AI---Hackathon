@@ -33,6 +33,7 @@ import {
   FileText,
   KeyRound
 } from "lucide-react";
+import { CountrySelect } from "../common/CountrySelect";
 
 export function ProfileView() {
   const { currentUser, isOfficial, isCivilian, isTourist, updateUserProfile, logout } = useAuth();
@@ -42,8 +43,10 @@ export function ProfileView() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editName, setEditName] = useState(currentUser?.name || "");
   const [editContact, setEditContact] = useState(currentUser?.contact || "");
+  const [editCountry, setEditCountry] = useState(currentUser?.country || "United States");
   const [editPhotoPreview, setEditPhotoPreview] = useState(currentUser?.profilePhoto || null);
   const [editPassword, setEditPassword] = useState("");
+  const [showEditPassword, setShowEditPassword] = useState(false);
   const [editError, setEditError] = useState("");
 
   if (!currentUser) return null;
@@ -61,8 +64,10 @@ export function ProfileView() {
   const handleOpenEdit = () => {
     setEditName(currentUser.name || "");
     setEditContact(currentUser.contact || "");
+    setEditCountry(currentUser.country || "United States");
     setEditPhotoPreview(currentUser.profilePhoto || null);
     setEditPassword("");
+    setShowEditPassword(false);
     setEditError("");
     setIsEditModalOpen(true);
   };
@@ -101,6 +106,9 @@ export function ProfileView() {
       contact: editContact.trim(),
       profilePhoto: editPhotoPreview,
     };
+    if (isTourist && editCountry) {
+      updates.country = editCountry;
+    }
     if (editPassword.trim()) {
       updates.password = editPassword.trim();
     }
@@ -110,35 +118,7 @@ export function ProfileView() {
     showToast("Profile details and photo updated successfully!", "success");
   };
 
-  const sampleRecentPoints = [
-    {
-      id: "CMP-10245",
-      title: "Water Pipeline Leakage",
-      category: "Water Supply & Distribution",
-      points: 30,
-      verified: true,
-      breakdown: "+30 High-impact validated issue +5 Strong evidence +5 Verified resolution",
-      date: "Aug 21, 2026",
-    },
-    {
-      id: "CMP-10198",
-      title: "Pedestrian Streetlight Outage",
-      category: "Street Lighting & Electrical",
-      points: 15,
-      verified: true,
-      breakdown: "+15 Medium priority night safety +5 Photo proof",
-      date: "Aug 19, 2026",
-    },
-    {
-      id: "CMP-10172",
-      title: "Central Market Waste Overflow",
-      category: "Solid Waste Management",
-      points: 15,
-      verified: true,
-      breakdown: "+15 Validated municipal cleanup +5 Rapid resolution",
-      date: "Aug 17, 2026",
-    },
-  ];
+  const pointHistory = currentUser.pointHistory || [];
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
@@ -285,7 +265,7 @@ export function ProfileView() {
                 Reports Filed
               </span>
               <span className="text-2xl font-extrabold text-white font-mono">
-                {currentUser.reportsSubmitted || 18}
+                {currentUser.reportsSubmitted ?? 0}
               </span>
             </div>
 
@@ -294,7 +274,7 @@ export function ProfileView() {
                 Validated Reports
               </span>
               <span className="text-2xl font-extrabold text-emerald-400 font-mono">
-                {currentUser.reportsValidated || 14}
+                {currentUser.reportsValidated ?? 0}
               </span>
             </div>
 
@@ -303,7 +283,7 @@ export function ProfileView() {
                 Resolved Reports
               </span>
               <span className="text-2xl font-extrabold text-sky-400 font-mono">
-                {currentUser.issuesResolved || 11}
+                {currentUser.issuesResolved ?? 0}
               </span>
             </div>
 
@@ -312,7 +292,7 @@ export function ProfileView() {
                 Estimated Impact
               </span>
               <span className="text-2xl font-extrabold text-amber-400 font-mono">
-                ~{(currentUser.estimatedImpacted || 8400).toLocaleString()}
+                ~{(currentUser.estimatedImpacted ?? 0).toLocaleString()}
               </span>
               <span className="text-[10px] text-slate-500 block">Citizens benefited</span>
             </div>
@@ -327,40 +307,54 @@ export function ProfileView() {
                   Recent Points & Itemized Validation Audit
                 </h2>
               </div>
-              <span className="text-xs text-slate-400 font-mono">
-                Total: 🏆 {points} pts
+              <span className="text-xs text-slate-400 font-mono font-bold">
+                Total My Points: <span className="text-emerald-400 font-extrabold">🏆 {points} pts</span>
               </span>
             </div>
 
-            <div className="space-y-3">
-              {sampleRecentPoints.map((c, i) => (
-                <div
-                  key={i}
-                  className="bg-slate-950/70 border border-slate-800 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
-                >
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-mono text-xs font-bold text-sky-400">{c.id}</span>
-                      <span className="font-semibold text-slate-100 text-sm">{c.title}</span>
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
-                        Validated ✓
-                      </span>
+            {pointHistory.length === 0 ? (
+              <div className="bg-slate-950/40 border border-dashed border-slate-800 rounded-xl p-8 text-center space-y-2">
+                <Award className="w-8 h-8 text-slate-600 mx-auto" />
+                <p className="text-sm font-semibold text-slate-300">No points earned yet.</p>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+                  Points are awarded once your submitted civic reports are officially validated by municipal authorities.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {pointHistory.map((c, i) => (
+                  <div
+                    key={c.id || i}
+                    className="bg-slate-950/70 border border-slate-800 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:border-slate-700 transition"
+                  >
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        {c.caseId && (
+                          <span className="font-mono text-xs font-bold text-sky-400 bg-sky-950/80 px-2 py-0.5 rounded border border-sky-800/80">
+                            {c.caseId}
+                          </span>
+                        )}
+                        <span className="font-semibold text-slate-100 text-sm">{c.title}</span>
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
+                          {c.status || "Validated ✓"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 font-mono">
+                        <strong className="text-slate-300">Why did I receive these points? </strong>
+                        {c.reason}
+                      </p>
                     </div>
-                    <p className="text-xs text-slate-400 font-mono">
-                      <strong className="text-slate-300">Why did I receive these points? </strong>
-                      {c.breakdown}
-                    </p>
-                  </div>
 
-                  <div className="text-right flex-shrink-0">
-                    <span className="text-base font-extrabold text-emerald-400 font-mono block">
-                      +{c.points}
-                    </span>
-                    <span className="text-[10px] text-slate-500">{c.date}</span>
+                    <div className="text-right flex-shrink-0">
+                      <span className="text-base font-extrabold text-emerald-400 font-mono block">
+                        +{c.points}
+                      </span>
+                      <span className="text-[10px] text-slate-500">{c.date}</span>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </>
       )}
@@ -371,14 +365,14 @@ export function ProfileView() {
           <div className="glass-card p-5 rounded-2xl border border-slate-800 text-center space-y-1">
             <span className="text-xs font-bold text-slate-400 uppercase">Cases Validated</span>
             <span className="text-3xl font-extrabold text-sky-400 font-mono block">
-              {currentUser.reportsValidated || 142}
+              {currentUser.reportsValidated ?? 0}
             </span>
           </div>
 
           <div className="glass-card p-5 rounded-2xl border border-slate-800 text-center space-y-1">
             <span className="text-xs font-bold text-slate-400 uppercase">Resolutions Verified</span>
             <span className="text-3xl font-extrabold text-emerald-400 font-mono block">
-              {currentUser.issuesResolved || 98}
+              {currentUser.issuesResolved ?? 0}
             </span>
           </div>
 
@@ -449,15 +443,38 @@ export function ProfileView() {
             />
           </div>
 
+          {isTourist && (
+            <div>
+              <label className="text-xs font-bold text-slate-300 block mb-1">Country / Nationality</label>
+              <CountrySelect
+                value={editCountry}
+                onChange={setEditCountry}
+                placeholder="Search and select your country..."
+              />
+            </div>
+          )}
+
           <div>
             <label className="text-xs font-bold text-slate-300 block mb-1">Change Password (Optional)</label>
-            <input
-              type="password"
-              value={editPassword}
-              onChange={(e) => setEditPassword(e.target.value)}
-              placeholder="Leave blank to keep existing password"
-              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-sky-500"
-            />
+            <div className="relative">
+              <input
+                type={showEditPassword ? "text" : "password"}
+                value={editPassword}
+                onChange={(e) => setEditPassword(e.target.value)}
+                placeholder="Leave blank to keep existing password"
+                autoComplete="new-password"
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg pl-3.5 pr-10 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-sky-500"
+              />
+              <button
+                type="button"
+                onClick={() => setShowEditPassword(!showEditPassword)}
+                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-200 transition focus:outline-none"
+                aria-label={showEditPassword ? "Hide password" : "Show password"}
+                tabIndex={-1}
+              >
+                {showEditPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
