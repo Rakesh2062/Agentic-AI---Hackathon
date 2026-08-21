@@ -21,7 +21,7 @@ const PIPELINE_STEPS = [
     borderColor: "border-sky-500/60",
     bgColor: "bg-sky-950/40",
     dotColor: "bg-sky-400",
-    duration: 700,
+    duration: 1200,
   },
   {
     id: "classify",
@@ -32,7 +32,7 @@ const PIPELINE_STEPS = [
     borderColor: "border-violet-500/60",
     bgColor: "bg-violet-950/40",
     dotColor: "bg-violet-400",
-    duration: 1100,
+    duration: 1400,
   },
   {
     id: "duplicate",
@@ -54,7 +54,7 @@ const PIPELINE_STEPS = [
     borderColor: "border-rose-500/60",
     bgColor: "bg-rose-950/40",
     dotColor: "bg-rose-400",
-    duration: 900,
+    duration: 1300,
   },
   {
     id: "routing",
@@ -65,29 +65,7 @@ const PIPELINE_STEPS = [
     borderColor: "border-emerald-500/60",
     bgColor: "bg-emerald-950/40",
     dotColor: "bg-emerald-400",
-    duration: 800,
-  },
-  {
-    id: "escalation",
-    icon: AlertTriangle,
-    agent: "Escalation Agent",
-    action: "Checking escalation threshold",
-    color: "text-orange-400",
-    borderColor: "border-orange-500/60",
-    bgColor: "bg-orange-950/40",
-    dotColor: "bg-orange-400",
-    duration: 700,
-  },
-  {
-    id: "rag",
-    icon: BookOpen,
-    agent: "RAG Knowledge Agent",
-    action: "Retrieving municipal SOP guidelines",
-    color: "text-cyan-400",
-    borderColor: "border-cyan-500/60",
-    bgColor: "bg-cyan-950/40",
-    dotColor: "bg-cyan-400",
-    duration: 600,
+    duration: 1200,
   },
 ];
 
@@ -227,8 +205,10 @@ export function AgentPipelineInline({ isVisible }) {
 export function AgentResultSummary({ caseData }) {
   if (!caseData) return null;
 
+  // Filter agents so only those that actually participated in intake are displayed
   const agents = [
     {
+      id: "classify",
       icon: GitBranch,
       agent: "Classification Agent",
       result: caseData.category
@@ -237,8 +217,10 @@ export function AgentResultSummary({ caseData }) {
       color: "text-violet-400",
       bg: "bg-violet-950/30",
       border: "border-violet-700/40",
+      active: true,
     },
     {
+      id: "duplicate",
       icon: Copy,
       agent: "Duplicate Detection Agent",
       result: caseData.is_duplicate
@@ -247,35 +229,39 @@ export function AgentResultSummary({ caseData }) {
       color: "text-amber-400",
       bg: "bg-amber-950/30",
       border: "border-amber-700/40",
+      active: true,
     },
     {
+      id: "priority",
       icon: Zap,
       agent: "Priority Agent",
       result: `Assigned ${(caseData.priority || "medium").toUpperCase()} priority`,
       color: "text-rose-400",
       bg: "bg-rose-950/30",
       border: "border-rose-700/40",
+      active: true,
     },
     {
+      id: "routing",
       icon: GitBranch,
       agent: "Routing Agent",
       result: `Routed to ${caseData.recommended_department || caseData.department || "Municipal Dispatch"}`,
       color: "text-emerald-400",
       bg: "bg-emerald-950/30",
       border: "border-emerald-700/40",
+      active: true,
     },
     {
+      id: "escalation",
       icon: AlertTriangle,
       agent: "Escalation Agent",
-      result:
-        caseData.priority === "critical"
-          ? "Escalated to senior authority"
-          : "No escalation required",
+      result: "Escalated to senior authority due to Critical SLA severity",
       color: "text-orange-400",
       bg: "bg-orange-950/30",
       border: "border-orange-700/40",
+      active: caseData.priority === "critical" || caseData.status === "escalated",
     },
-  ];
+  ].filter((a) => a.active);
 
   return (
     <div className="mt-5 text-left bg-slate-950/60 border border-slate-800 rounded-xl overflow-hidden">
