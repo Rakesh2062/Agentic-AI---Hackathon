@@ -10,10 +10,11 @@ for p in (workspace_root, backend_dir):
         sys.path.insert(0, p)
 
 from datetime import datetime, timezone
+# pyrefly: ignore [missing-import]
 import pytest
 from bson import ObjectId
 
-from database.collections import (
+from Backend.database.collections import (
     COMPLAINTS_COLLECTION,
     COMPLAINT_EMBEDDINGS_COLLECTION,
     ComplaintPriority,
@@ -206,6 +207,8 @@ def test_rag_helper_exports(mock_db):
 @pytest.mark.asyncio
 async def test_duplicate_agent_end_to_end(mock_db):
     """Verifies that DuplicateAgent executes end-to-end without code modifications."""
+    from unittest.mock import patch
+    
     mock_llm = MockTestLLMClient(response_json='{"is_duplicate": false, "duplicate_of": null, "confidence": 0.95, "reason": "No matching duplicate"}')
     agent = DuplicateAgent(llm_client=mock_llm)
 
@@ -219,7 +222,10 @@ async def test_duplicate_agent_end_to_end(mock_db):
         longitude=-74.0060,
     )
 
-    result = await agent.run(state)
+    with patch("agents.duplicate.agent.search_tools.get_sync_db", return_value=mock_db):
+        with patch("agents.tools.search_tools.get_sync_db", return_value=mock_db):
+            result = await agent.run(state)
+            
     assert result.is_duplicate is False
     assert state.is_duplicate is False
     assert len(state.audit_events) == 1
