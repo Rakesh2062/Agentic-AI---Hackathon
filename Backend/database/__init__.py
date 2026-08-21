@@ -32,7 +32,6 @@ from database.collections import (
     get_collection_validators,
 )
 from database.indexes import create_indexes
-from database.seed import seed_database
 
 __all__ = [
     "get_async_client",
@@ -60,5 +59,4 @@ __all__ = [
     "EscalationStatus",
     "get_collection_validators",
     "create_indexes",
-    "seed_database",
 ]

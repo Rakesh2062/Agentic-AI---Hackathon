@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 import pymongo
 from pymongo import MongoClient
 from pymongo.database import Database
+import certifi
 
 # Load environment variables if available
 load_dotenv()
@@ -32,13 +33,16 @@ def get_sync_client(uri: Optional[str] = None) -> MongoClient:
     global _sync_client
     target_uri = uri or MONGODB_URI
     if _sync_client is None or uri is not None:
-        client = MongoClient(
-            target_uri,
-            maxPoolSize=MAX_POOL_SIZE,
-            minPoolSize=MIN_POOL_SIZE,
-            serverSelectionTimeoutMS=TIMEOUT_MS,
-            connectTimeoutMS=TIMEOUT_MS,
-        )
+        client_kwargs = {
+            "maxPoolSize": MAX_POOL_SIZE,
+            "minPoolSize": MIN_POOL_SIZE,
+            "serverSelectionTimeoutMS": TIMEOUT_MS,
+            "connectTimeoutMS": TIMEOUT_MS,
+        }
+        if "mongodb+srv://" in target_uri:
+            client_kwargs["tlsCAFile"] = certifi.where()
+
+        client = MongoClient(target_uri, **client_kwargs)
         if uri is None:
             _sync_client = client
             return _sync_client
@@ -92,13 +96,16 @@ def get_async_client(uri: Optional[str] = None):
 
     target_uri = uri or MONGODB_URI
     if _async_client is None or uri is not None:
-        client = AsyncIOMotorClient(
-            target_uri,
-            maxPoolSize=MAX_POOL_SIZE,
-            minPoolSize=MIN_POOL_SIZE,
-            serverSelectionTimeoutMS=TIMEOUT_MS,
-            connectTimeoutMS=TIMEOUT_MS,
-        )
+        client_kwargs = {
+            "maxPoolSize": MAX_POOL_SIZE,
+            "minPoolSize": MIN_POOL_SIZE,
+            "serverSelectionTimeoutMS": TIMEOUT_MS,
+            "connectTimeoutMS": TIMEOUT_MS,
+        }
+        if "mongodb+srv://" in target_uri:
+            client_kwargs["tlsCAFile"] = certifi.where()
+            
+        client = AsyncIOMotorClient(target_uri, **client_kwargs)
         if uri is None:
             _async_client = client
             return _async_client
