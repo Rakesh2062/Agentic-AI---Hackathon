@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { PriorityBadge, CategoryBadge } from "../common/Badge";
 import { formatDate } from "../../utils/formatters";
+import { AgentResultSummary } from "../common/AgentPipelineOverlay";
 
 export function ComplaintSuccess({ createdCase, onTrackNow, onNewComplaint }) {
   const [copied, setCopied] = useState(false);
@@ -102,6 +103,9 @@ export function ComplaintSuccess({ createdCase, onTrackNow, onNewComplaint }) {
           </div>
         </div>
       </div>
+
+      {/* Agent Result Breakdown */}
+      <AgentResultSummary caseData={createdCase} />
 
       {/* Actions */}
       <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
