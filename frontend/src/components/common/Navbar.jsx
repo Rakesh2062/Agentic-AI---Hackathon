@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useApp } from "../../context/AppContext";
 import { useAuth } from "../../context/AuthContext";
 import { RoleLabels, UserRole } from "../../utils/constants";
@@ -27,6 +27,19 @@ export function Navbar({ onOpenLanding }) {
   const { currentUser, logout, isOfficial, isCivilian, isTourist, setAuthModalOpen } = useAuth();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const userMenuRef = useRef(null);
+
+  // Close user dropdown on outside click — cleaned up properly each render
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    function handleOutsideClick(e) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setUserMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [userMenuOpen]);
 
   const handleLandingNavigation = () => {
     setAuthModalOpen(false);
@@ -131,7 +144,7 @@ export function Navbar({ onOpenLanding }) {
           {/* Right User Profile Dropdown */}
           <div className="flex items-center gap-3">
             {currentUser ? (
-              <div className="relative">
+              <div className="relative" ref={userMenuRef}>
                 <button
                   type="button"
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
@@ -163,7 +176,6 @@ export function Navbar({ onOpenLanding }) {
                 {/* Dropdown Menu */}
                 {userMenuOpen && (
                   <>
-                    <div className="fixed inset-0 z-30" onClick={() => setUserMenuOpen(false)} />
                     <div className="absolute right-0 mt-2 w-60 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl z-40 p-2 text-xs animate-slide-up space-y-1">
                       <div className="p-3 border-b border-slate-800">
                         <div className="flex items-center gap-2.5 mb-2">

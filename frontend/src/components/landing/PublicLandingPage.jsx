@@ -176,7 +176,7 @@ export function PublicLandingPage({ onGetStarted }) {
               {/* City Environment Image */}
               <div className="relative h-80 sm:h-96 md:h-[430px] w-full overflow-hidden">
                 <img
-                  src="https://images.unsplash.com/photo-1477959858617-67f30bc75b82?w=1200&auto=format&fit=crop&q=80"
+                  src="https://images.unsplash.com/photo-1673086636045-9aa873babc91?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MjZ8fG1hcCUyMHBob3RvfGVufDB8fDB8fHww"
                   alt="Smart Metropolis Infrastructure"
                   className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 filter brightness-90 contrast-110"
                 />
@@ -188,13 +188,13 @@ export function PublicLandingPage({ onGetStarted }) {
                 <div className="absolute inset-0 bg-[linear-gradient(rgba(56,189,248,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(56,189,248,0.05)_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none" />
 
                 {/* AI Geospatial HUD Markers */}
-                <div className="absolute top-6 left-6 flex items-center gap-2 bg-slate-950/85 backdrop-blur-md px-3 py-1.5 rounded-xl border border-sky-500/50 shadow-lg text-[10px] font-mono text-sky-300">
+                <div className="absolute top-6 left-6 flex items-center gap-2 bg-slate-950/50 backdrop-blur-md px-3 py-1.5 rounded-xl border border-sky-500/50 shadow-lg text-[10px] font-mono text-sky-300">
                   <Activity className="w-3.5 h-3.5 text-sky-400 animate-pulse" />
                   <span>SECTOR 04 • 16.5062° N, 80.6480° E</span>
                 </div>
 
                 {/* Live Incident Ping 1 */}
-                <div className="absolute top-28 right-10 flex items-center gap-2 bg-slate-950/90 backdrop-blur-md p-2 rounded-xl border border-emerald-500/60 shadow-xl animate-bounce duration-1000">
+                <div className="absolute top-28 right-10 flex items-center gap-2 bg-slate-950/55 backdrop-blur-md p-2 rounded-xl border border-emerald-500/60 shadow-xl animate-bounce duration-1000">
                   <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
                   <div className="text-[10px] text-left">
                     <span className="font-bold text-white block">Water Pipeline AI Triage</span>
@@ -203,7 +203,7 @@ export function PublicLandingPage({ onGetStarted }) {
                 </div>
 
                 {/* Live Incident Ping 2 */}
-                <div className="absolute bottom-24 left-6 flex items-center gap-2 bg-slate-950/90 backdrop-blur-md p-2 rounded-xl border border-amber-500/60 shadow-xl">
+                <div className="absolute bottom-24 left-6 flex items-center gap-2 bg-slate-950/55 backdrop-blur-md p-2 rounded-xl border border-amber-500/60 shadow-xl">
                   <MapPin className="w-3.5 h-3.5 text-amber-400" />
                   <div className="text-[10px] text-left">
                     <span className="font-bold text-white block">Main Corridor Pothole</span>
@@ -212,7 +212,7 @@ export function PublicLandingPage({ onGetStarted }) {
                 </div>
 
                 {/* Bottom Card Banner */}
-                <div className="absolute bottom-4 left-4 right-4 bg-slate-950/95 backdrop-blur-md border border-slate-700/80 rounded-2xl p-4 flex items-center justify-between text-xs">
+                <div className="absolute bottom-4 left-4 right-4 bg-slate-950/55 backdrop-blur-md border border-slate-700/80 rounded-2xl p-4 flex items-center justify-between text-xs">
                   <div>
                     <span className="text-[10px] uppercase font-mono tracking-wider text-sky-400 font-bold block">
                       Civic Telemetry Engine

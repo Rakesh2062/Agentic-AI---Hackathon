@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { getAnalyticsHotspots, getAnalyticsMetrics, getDepartmentCases } from "../../api/endpoints";
+import { getAnalyticsMetrics, getDepartmentCases } from "../../api/endpoints";
 import { useApp } from "../../context/AppContext";
 import { CategoryBadge } from "../common/Badge";
 import { Category } from "../../utils/constants";
@@ -21,22 +21,19 @@ import {
 
 export function AnalyticsView() {
   const { demoMode } = useApp();
-  const [hotspots, setHotspots] = useState([]);
   const [metrics, setMetrics] = useState(null);
   const [allCases, setAllCases] = useState([]);
-  const [selectedWardForMap, setSelectedWardForMap] = useState("Ward 4 - Central West");
+  const [selectedWardForMap, setSelectedWardForMap] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadAnalytics() {
       setLoading(true);
       try {
-        const [hotspotsRes, metricsRes, casesRes] = await Promise.all([
-          getAnalyticsHotspots(demoMode),
+        const [metricsRes, casesRes] = await Promise.all([
           getAnalyticsMetrics(demoMode),
           getDepartmentCases("all", demoMode),
         ]);
-        setHotspots(hotspotsRes || []);
         setMetrics(metricsRes || null);
         setAllCases(casesRes || []);
         setLoading(false);
@@ -46,6 +43,73 @@ export function AnalyticsView() {
     }
     loadAnalytics();
   }, [demoMode]);
+
+  // Derive hotspots dynamically from real validated cases only.
+  // A case is considered "validated" if it has moved past SUBMITTED/UNDER_REVIEW
+  // (i.e., validatedSeverity is set OR status is ASSIGNED/IN_PROGRESS/INSPECTED/RESOLVED/CLOSED/ESCALATED).
+  const validatedStatuses = new Set(["ASSIGNED", "IN_PROGRESS", "INSPECTED", "RESOLVED", "CLOSED", "ESCALATED"]);
+  const validatedCases = allCases.filter(
+    (c) => c.validatedSeverity || validatedStatuses.has((c.status || "").toUpperCase())
+  );
+
+  // Group validated cases by ward
+  const wardMap = {};
+  for (const c of validatedCases) {
+    const ward = c.location?.ward || "Unknown Ward";
+    if (!wardMap[ward]) {
+      wardMap[ward] = { ward, cases: [] };
+    }
+    wardMap[ward].cases.push(c);
+  }
+
+  // Build hotspot list: top 4 wards by validated complaint count
+  const hotspots = Object.values(wardMap)
+    .sort((a, b) => b.cases.length - a.cases.length)
+    .slice(0, 4)
+    .map((w) => {
+      // Most common category in this ward
+      const categoryCounts = {};
+      for (const c of w.cases) {
+        const cat = c.category || "other";
+        categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+      }
+      const primaryCategory = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "other";
+
+      // Risk level: CRITICAL/ESCALATED cases → HIGH, otherwise MEDIUM
+      const hasHighRisk = w.cases.some(
+        (c) => ["CRITICAL", "HIGH"].includes((c.validatedSeverity || c.priority || "").toUpperCase()) ||
+               c.status === "ESCALATED"
+      );
+      const riskLevel = hasHighRisk ? "HIGH" : "MEDIUM";
+
+      // Top issue: most common sub_category or category
+      const subCatCounts = {};
+      for (const c of w.cases) {
+        const label = c.sub_category || c.category || "Civic Issue";
+        subCatCounts[label] = (subCatCounts[label] || 0) + 1;
+      }
+      const topIssue = Object.entries(subCatCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "General civic issue";
+
+      // Average SLA hours remaining (rough: cases with sla_deadline set)
+      const slaCases = w.cases.filter((c) => c.sla_deadline);
+      let avgSlaHours = null;
+      if (slaCases.length > 0) {
+        const totalHours = slaCases.reduce((sum, c) => {
+          const diff = Math.abs(new Date(c.sla_deadline) - new Date(c.created_at)) / 3600000;
+          return sum + diff;
+        }, 0);
+        avgSlaHours = (totalHours / slaCases.length).toFixed(1);
+      }
+
+      return {
+        ward: w.ward,
+        complaint_count: w.cases.length,
+        primary_category: primaryCategory,
+        risk_level: riskLevel,
+        avg_sla_hours: avgSlaHours,
+        top_issue: topIssue,
+      };
+    });
 
   const categoryBreakdown = [
     { name: "Roads & Pavements", category: Category.ROADS, count: 48, percentage: 32, color: "bg-sky-500" },
@@ -186,52 +250,70 @@ export function AnalyticsView() {
           </p>
 
           <div className="space-y-3">
-            {hotspots.map((hotspot, idx) => {
-              const isSelected = selectedWardForMap === hotspot.ward;
-
-              return (
-                <div
-                  key={idx}
-                  onClick={() => setSelectedWardForMap(hotspot.ward)}
-                  className={`bg-slate-950/70 border rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 cursor-pointer transition ${
-                    isSelected
-                      ? "border-sky-500 bg-sky-950/20 shadow-glow-primary"
-                      : "border-slate-800 hover:border-slate-700"
-                  }`}
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-sky-400" />
-                      <span className="font-bold text-slate-100 text-sm">{hotspot.ward}</span>
-                      <span
-                        className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border uppercase ${
-                          hotspot.risk_level === "HIGH"
-                            ? "bg-rose-950/80 text-rose-300 border-rose-800"
-                            : "bg-amber-950/80 text-amber-300 border-amber-800"
-                        }`}
-                      >
-                        {hotspot.risk_level} Risk
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-400">
-                      Top issue: <span className="text-slate-300 font-medium">{hotspot.top_issue}</span>
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-3 sm:text-right w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 border-slate-800/80 pt-2 sm:pt-0">
-                    <CategoryBadge category={hotspot.primary_category} size="sm" />
-                    <div className="text-right">
-                      <span className="text-sm font-extrabold text-white font-mono block">
-                        {hotspot.complaint_count} cases
-                      </span>
-                      <span className="text-[10px] text-slate-400">
-                        Avg {hotspot.avg_sla_hours}h SLA
-                      </span>
-                    </div>
-                  </div>
+            {hotspots.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center space-y-3">
+                <div className="p-3 rounded-xl bg-slate-800/60 border border-slate-700">
+                  <ShieldCheck className="w-7 h-7 text-slate-500" />
                 </div>
-              );
-            })}
+                <div>
+                  <p className="text-sm font-semibold text-slate-300">No verified hotspot data available yet.</p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Hotspot intelligence will appear here once citizen reports have been submitted and validated by civic officials.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              hotspots.map((hotspot, idx) => {
+                const isSelected = selectedWardForMap === hotspot.ward;
+
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => setSelectedWardForMap(hotspot.ward)}
+                    className={`bg-slate-950/70 border rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 cursor-pointer transition ${
+                      isSelected
+                        ? "border-sky-500 bg-sky-950/20 shadow-glow-primary"
+                        : "border-slate-800 hover:border-slate-700"
+                    }`}
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-4 h-4 text-sky-400" />
+                        <span className="font-bold text-slate-100 text-sm">{hotspot.ward}</span>
+                        <span
+                          className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border uppercase ${
+                            hotspot.risk_level === "HIGH"
+                              ? "bg-rose-950/80 text-rose-300 border-rose-800"
+                              : "bg-amber-950/80 text-amber-300 border-amber-800"
+                          }`}
+                        >
+                          {hotspot.risk_level} Risk
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400">
+                        Top issue: <span className="text-slate-300 font-medium">{hotspot.top_issue}</span>
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-3 sm:text-right w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 border-slate-800/80 pt-2 sm:pt-0">
+                      <CategoryBadge category={hotspot.primary_category} size="sm" />
+                      <div className="text-right">
+                        <span className="text-sm font-extrabold text-white font-mono block">
+                          {hotspot.complaint_count} {hotspot.complaint_count === 1 ? "case" : "cases"}
+                        </span>
+                        {hotspot.avg_sla_hours ? (
+                          <span className="text-[10px] text-slate-400">
+                            Avg {hotspot.avg_sla_hours}h SLA
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-500">SLA N/A</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 

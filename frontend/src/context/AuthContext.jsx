@@ -174,17 +174,78 @@ export function AuthProvider({ children }) {
   const [registeredAccounts, setRegisteredAccounts] = useState(() => {
     try {
       const saved = localStorage.getItem("civicpulse_registered_users");
-      return saved ? JSON.parse(saved) : SEED_USERS;
+      if (!saved) return SEED_USERS;
+
+      const stored = JSON.parse(saved);
+
+      // Build a lookup of seed user IDs for fast check
+      const seedById = Object.fromEntries(SEED_USERS.map((u) => [u.id, u]));
+
+      // Merge: for each seed user, overlay fresh seed fields (points, history, etc.)
+      // but keep any session-earned progress that is HIGHER than the seed value.
+      const merged = stored.map((u) => {
+        const seed = seedById[u.id];
+        if (!seed) return u; // non-seed (registered) user — keep as-is
+        return {
+          ...seed,           // start with full fresh seed definition
+          ...u,              // overlay stored changes (name, contact, photo, password edits)
+          // For numeric counters, always take the maximum so earned progress isn't lost
+          civicPoints: Math.max(seed.civicPoints || 0, u.civicPoints || 0),
+          reportsSubmitted: Math.max(seed.reportsSubmitted || 0, u.reportsSubmitted || 0),
+          reportsValidated: Math.max(seed.reportsValidated || 0, u.reportsValidated || 0),
+          issuesResolved: Math.max(seed.issuesResolved || 0, u.issuesResolved || 0),
+          estimatedImpacted: Math.max(seed.estimatedImpacted || 0, u.estimatedImpacted || 0),
+          // Point history: merge seed entries + any new session entries (deduplicate by id)
+          pointHistory: [
+            ...(u.pointHistory || []).filter(
+              (tx) => !(seed.pointHistory || []).some((s) => s.id === tx.id)
+            ),
+            ...(seed.pointHistory || []),
+          ],
+        };
+      });
+
+      // Add any seed users that are not yet in stored (shouldn't happen, but defensive)
+      for (const seed of SEED_USERS) {
+        if (!merged.find((u) => u.id === seed.id)) {
+          merged.push(seed);
+        }
+      }
+
+      return merged;
     } catch (e) {
       return SEED_USERS;
     }
   });
 
-  // Current authenticated user
+  // Current authenticated user — loaded from localStorage
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const saved = localStorage.getItem("civicpulse_active_user");
-      return saved ? JSON.parse(saved) : null;
+      if (!saved) return null;
+      const stored = JSON.parse(saved);
+
+      // If this is a seed user, pull the freshest merged version from registeredAccounts
+      // (can't reference the state here, so re-merge inline against SEED_USERS)
+      const seed = SEED_USERS.find((u) => u.id === stored.id);
+      if (seed) {
+        return {
+          ...seed,
+          ...stored,
+          civicPoints: Math.max(seed.civicPoints || 0, stored.civicPoints || 0),
+          reportsSubmitted: Math.max(seed.reportsSubmitted || 0, stored.reportsSubmitted || 0),
+          reportsValidated: Math.max(seed.reportsValidated || 0, stored.reportsValidated || 0),
+          issuesResolved: Math.max(seed.issuesResolved || 0, stored.issuesResolved || 0),
+          estimatedImpacted: Math.max(seed.estimatedImpacted || 0, stored.estimatedImpacted || 0),
+          pointHistory: [
+            ...(stored.pointHistory || []).filter(
+              (tx) => !(seed.pointHistory || []).some((s) => s.id === tx.id)
+            ),
+            ...(seed.pointHistory || []),
+          ],
+        };
+      }
+      return stored;
     } catch (e) {
       return null;
     }
