@@ -28,7 +28,7 @@ import { useAuth } from "../../context/AuthContext";
 import { Category, CategoryLabels, Priority } from "../../utils/constants";
 import { ComplaintSuccess } from "./ComplaintSuccess";
 import { GoogleMapsPicker } from "../common/GoogleMapsPicker";
-import { AgentPipelineOverlay } from "../common/AgentPipelineOverlay";
+import { AgentPipelineOverlay, AgentPipelineInline } from "../common/AgentPipelineOverlay";
 
 const QUICK_PROMPTS = [
   {
@@ -678,6 +678,7 @@ export function ComplaintForm() {
               </>
             )}
           </button>
+          <AgentPipelineInline isVisible={isSubmitting} />
         </div>
       </form>
     </div>

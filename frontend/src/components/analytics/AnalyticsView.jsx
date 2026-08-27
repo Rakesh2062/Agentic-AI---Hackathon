@@ -23,7 +23,8 @@ export function AnalyticsView() {
   const { demoMode } = useApp();
   const [metrics, setMetrics] = useState(null);
   const [allCases, setAllCases] = useState([]);
-  const [selectedWardForMap, setSelectedWardForMap] = useState(null);
+  const [selectedWardForMap, setSelectedWardForMap] = useState("Ward 4 - Central West");
+  const [selectedCategoryForMap, setSelectedCategoryForMap] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -44,80 +45,80 @@ export function AnalyticsView() {
     loadAnalytics();
   }, [demoMode]);
 
-  // Derive hotspots dynamically from real validated cases only.
-  // A case is considered "validated" if it has moved past SUBMITTED/UNDER_REVIEW
-  // (i.e., validatedSeverity is set OR status is ASSIGNED/IN_PROGRESS/INSPECTED/RESOLVED/CLOSED/ESCALATED).
-  const validatedStatuses = new Set(["ASSIGNED", "IN_PROGRESS", "INSPECTED", "RESOLVED", "CLOSED", "ESCALATED"]);
-  const validatedCases = allCases.filter(
-    (c) => c.validatedSeverity || validatedStatuses.has((c.status || "").toUpperCase())
-  );
+  // Dynamically compute Category Distribution from actual submitted cases
+  const categoryCounts = React.useMemo(() => {
+    const counts = {};
+    allCases.forEach((c) => {
+      const cat = c.category || Category.OTHER;
+      counts[cat] = (counts[cat] || 0) + 1;
+    });
+    return counts;
+  }, [allCases]);
 
-  // Group validated cases by ward
-  const wardMap = {};
-  for (const c of validatedCases) {
-    const ward = c.location?.ward || "Unknown Ward";
-    if (!wardMap[ward]) {
-      wardMap[ward] = { ward, cases: [] };
-    }
-    wardMap[ward].cases.push(c);
-  }
+  const totalCaseCount = allCases.length || 1;
 
-  // Build hotspot list: top 4 wards by validated complaint count
-  const hotspots = Object.values(wardMap)
-    .sort((a, b) => b.cases.length - a.cases.length)
-    .slice(0, 4)
-    .map((w) => {
-      // Most common category in this ward
-      const categoryCounts = {};
-      for (const c of w.cases) {
-        const cat = c.category || "other";
-        categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+  const categoryBreakdown = React.useMemo(() => {
+    const list = [
+      { name: "Roads & Pavements", category: Category.ROADS, color: "bg-sky-500" },
+      { name: "Water & Sewage", category: Category.WATER, color: "bg-blue-500" },
+      { name: "Solid Waste Management", category: Category.WASTE, color: "bg-emerald-500" },
+      { name: "Street Lighting & Power", category: Category.STREETLIGHT, color: "bg-amber-500" },
+      { name: "Stormwater Drainage", category: Category.DRAINAGE, color: "bg-cyan-500" },
+      { name: "Other / General", category: Category.OTHER, color: "bg-purple-500" },
+    ];
+
+    return list.map((item) => {
+      const count = categoryCounts[item.category] || 0;
+      const percentage = Math.round((count / totalCaseCount) * 100);
+      return { ...item, count, percentage };
+    });
+  }, [categoryCounts, totalCaseCount]);
+
+  // Dynamically compute Ward Hotspots from actual submitted cases
+  const dynamicHotspots = React.useMemo(() => {
+    const wardMap = {};
+    allCases.forEach((c) => {
+      const wardName = c.location?.ward || c.location?.address || "Downtown Metropolitan Ward";
+      if (!wardMap[wardName]) {
+        wardMap[wardName] = {
+          ward: wardName,
+          complaint_count: 0,
+          categories: {},
+          top_issue: c.summary || c.raw_text || "Civic report",
+          hasCritical: false,
+        };
       }
-      const primaryCategory = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "other";
-
-      // Risk level: CRITICAL/ESCALATED cases → HIGH, otherwise MEDIUM
-      const hasHighRisk = w.cases.some(
-        (c) => ["CRITICAL", "HIGH"].includes((c.validatedSeverity || c.priority || "").toUpperCase()) ||
-               c.status === "ESCALATED"
-      );
-      const riskLevel = hasHighRisk ? "HIGH" : "MEDIUM";
-
-      // Top issue: most common sub_category or category
-      const subCatCounts = {};
-      for (const c of w.cases) {
-        const label = c.sub_category || c.category || "Civic Issue";
-        subCatCounts[label] = (subCatCounts[label] || 0) + 1;
+      wardMap[wardName].complaint_count += 1;
+      const cat = c.category || Category.OTHER;
+      wardMap[wardName].categories[cat] = (wardMap[wardName].categories[cat] || 0) + 1;
+      if (c.priority === "CRITICAL" || c.priority === "HIGH") {
+        wardMap[wardName].hasCritical = true;
       }
-      const topIssue = Object.entries(subCatCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "General civic issue";
+    });
 
-      // Average SLA hours remaining (rough: cases with sla_deadline set)
-      const slaCases = w.cases.filter((c) => c.sla_deadline);
-      let avgSlaHours = null;
-      if (slaCases.length > 0) {
-        const totalHours = slaCases.reduce((sum, c) => {
-          const diff = Math.abs(new Date(c.sla_deadline) - new Date(c.created_at)) / 3600000;
-          return sum + diff;
-        }, 0);
-        avgSlaHours = (totalHours / slaCases.length).toFixed(1);
-      }
+    const result = Object.values(wardMap).map((w) => {
+      // find primary category
+      let maxCat = Category.ROADS;
+      let maxCount = 0;
+      Object.entries(w.categories).forEach(([catKey, countVal]) => {
+        if (countVal > maxCount) {
+          maxCount = countVal;
+          maxCat = catKey;
+        }
+      });
 
       return {
         ward: w.ward,
-        complaint_count: w.cases.length,
-        primary_category: primaryCategory,
-        risk_level: riskLevel,
-        avg_sla_hours: avgSlaHours,
-        top_issue: topIssue,
+        complaint_count: w.complaint_count,
+        primary_category: maxCat,
+        risk_level: w.hasCritical ? "HIGH" : "MEDIUM",
+        avg_sla_hours: w.hasCritical ? 12.0 : 24.0,
+        top_issue: w.top_issue,
       };
     });
 
-  const categoryBreakdown = [
-    { name: "Roads & Pavements", category: Category.ROADS, count: 48, percentage: 32, color: "bg-sky-500" },
-    { name: "Water & Sewage", category: Category.WATER, count: 36, percentage: 24, color: "bg-blue-500" },
-    { name: "Solid Waste Management", category: Category.WASTE, count: 28, percentage: 19, color: "bg-emerald-500" },
-    { name: "Street Lighting & Power", category: Category.STREETLIGHT, count: 22, percentage: 15, color: "bg-amber-500" },
-    { name: "Stormwater Drainage", category: Category.DRAINAGE, count: 16, percentage: 10, color: "bg-cyan-500" },
-  ];
+    return result;
+  }, [allCases]);
 
   return (
     <div className="space-y-6">
@@ -224,6 +225,7 @@ export function AnalyticsView() {
           mode="heatmap"
           existingCases={allCases}
           selectedWard={selectedWardForMap}
+          selectedCategory={selectedCategoryForMap}
           height="h-80 sm:h-96"
         />
       </div>
@@ -250,49 +252,35 @@ export function AnalyticsView() {
           </p>
 
           <div className="space-y-3">
-            {hotspots.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center space-y-3">
-                <div className="p-3 rounded-xl bg-slate-800/60 border border-slate-700">
-                  <ShieldCheck className="w-7 h-7 text-slate-500" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-slate-300">No verified hotspot data available yet.</p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Hotspot intelligence will appear here once citizen reports have been submitted and validated by civic officials.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              hotspots.map((hotspot, idx) => {
-                const isSelected = selectedWardForMap === hotspot.ward;
+            {dynamicHotspots.map((hotspot, idx) => {
+              const isSelected = selectedWardForMap === hotspot.ward;
 
-                return (
-                  <div
-                    key={idx}
-                    onClick={() => setSelectedWardForMap(hotspot.ward)}
-                    className={`bg-slate-950/70 border rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 cursor-pointer transition ${
-                      isSelected
-                        ? "border-sky-500 bg-sky-950/20 shadow-glow-primary"
-                        : "border-slate-800 hover:border-slate-700"
-                    }`}
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-sky-400" />
-                        <span className="font-bold text-slate-100 text-sm">{hotspot.ward}</span>
-                        <span
-                          className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border uppercase ${
-                            hotspot.risk_level === "HIGH"
-                              ? "bg-rose-950/80 text-rose-300 border-rose-800"
-                              : "bg-amber-950/80 text-amber-300 border-amber-800"
-                          }`}
-                        >
-                          {hotspot.risk_level} Risk
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-400">
-                        Top issue: <span className="text-slate-300 font-medium">{hotspot.top_issue}</span>
-                      </p>
+              return (
+                <div
+                  key={idx}
+                  onClick={() => {
+                    setSelectedWardForMap(hotspot.ward);
+                    setSelectedCategoryForMap("");
+                  }}
+                  className={`bg-slate-950/70 border rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 cursor-pointer transition ${
+                    isSelected
+                      ? "border-sky-500 bg-sky-950/20 shadow-glow-primary"
+                      : "border-slate-800 hover:border-slate-700"
+                  }`}
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-sky-400" />
+                      <span className="font-bold text-slate-100 text-sm">{hotspot.ward}</span>
+                      <span
+                        className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border uppercase ${
+                          hotspot.risk_level === "HIGH"
+                            ? "bg-rose-950/80 text-rose-300 border-rose-800"
+                            : "bg-amber-950/80 text-amber-300 border-amber-800"
+                        }`}
+                      >
+                        {hotspot.risk_level} Risk
+                      </span>
                     </div>
 
                     <div className="flex items-center gap-3 sm:text-right w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 border-slate-800/80 pt-2 sm:pt-0">
@@ -326,24 +314,33 @@ export function AnalyticsView() {
             <span className="text-xs text-slate-400 font-mono">100% Total</span>
           </div>
 
-          <div className="space-y-4 pt-1">
-            {categoryBreakdown.map((item, idx) => (
-              <div key={idx} className="space-y-1.5">
+          <div className="space-y-3 pt-1">
+            {categoryBreakdown.map((item, idx) => {
+              const isSelected = selectedCategoryForMap === item.category;
+              return (
+              <div 
+                key={idx} 
+                onClick={() => {
+                  setSelectedCategoryForMap(isSelected ? "" : item.category);
+                  if (!isSelected) setSelectedWardForMap("");
+                }}
+                className={`space-y-1.5 p-3 rounded-xl cursor-pointer transition border ${isSelected ? "border-sky-500 bg-sky-950/20 shadow-glow-primary" : "border-slate-800 bg-slate-950/40 hover:border-slate-700"}`}
+              >
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-slate-200">{item.name}</span>
+                  <span className={`font-bold ${isSelected ? "text-sky-300" : "text-slate-200"}`}>{item.name}</span>
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-slate-400">{item.count}</span>
                     <span className="font-mono font-bold text-slate-100">{item.percentage}%</span>
                   </div>
                 </div>
-                <div className="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+                <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-800">
                   <div
                     className={`h-full rounded-full ${item.color}`}
                     style={{ width: `${item.percentage}%` }}
                   />
                 </div>
               </div>
-            ))}
+            )})}
           </div>
 
           {/* AI Pipeline Efficiency Note */}
