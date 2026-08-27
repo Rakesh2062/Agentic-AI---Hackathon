@@ -482,6 +482,16 @@ export function InteractiveMap({
     });
   }, [existingCases, mapLoaded, onMarkerClick]);
 
+  // Focus the map when a complaint is selected outside the map (for example,
+  // from the analytics hotspot list).
+  useEffect(() => {
+    const lat = selectedCase?.location?.lat;
+    const lng = selectedCase?.location?.lng;
+    if (!mapInstanceRef.current || !mapLoaded || typeof lat !== "number" || typeof lng !== "number") return;
+
+    mapInstanceRef.current.setView([lat, lng], 16, { animate: true });
+  }, [selectedCase, mapLoaded]);
+
   // Select a suggestion from the dropdown
   const handleSelectSuggestion = useCallback(
     (place) => {

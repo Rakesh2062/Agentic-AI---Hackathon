@@ -279,37 +279,35 @@ export function AgentResultSummary({ caseData }) {
 
   return (
     <div className="mt-5 text-left bg-slate-950/60 border border-slate-800 rounded-xl overflow-hidden">
-      {/* Header */}
       <div className="px-4 py-2.5 border-b border-slate-800 flex items-center gap-2">
         <Bot className="w-3.5 h-3.5 text-sky-400" />
         <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">
-          What each AI agent did
+          Behind-the-scenes AI processing flow
         </span>
       </div>
 
-      {/* Agent rows */}
-      <div className="divide-y divide-slate-800/60">
-        {agents.map((a) => {
+      <div className="p-4 space-y-0">
+        {agents.map((a, index) => {
           const Icon = a.icon;
           return (
-            <div
-              key={a.agent}
-              className={`flex items-start gap-3 px-4 py-2.5 ${a.bg}`}
-            >
-              <div
-                className={`mt-0.5 w-5 h-5 flex-shrink-0 rounded-full border ${a.border} flex items-center justify-center`}
-              >
-                <Icon className={`w-2.5 h-2.5 ${a.color}`} />
+            <div key={a.agent} className="relative flex gap-3 pb-4 last:pb-0">
+              {index < agents.length - 1 && (
+                <span className="absolute left-3.5 top-8 h-[calc(100%-1rem)] w-px bg-slate-700" />
+              )}
+              <div className={`z-10 h-7 w-7 flex-shrink-0 rounded-full border ${a.border} ${a.bg} flex items-center justify-center`}>
+                <Icon className={`w-3.5 h-3.5 ${a.color}`} />
               </div>
-              <div className="flex-1 min-w-0">
-                <p className={`text-[10px] font-bold ${a.color} mb-0.5`}>
-                  {a.agent}
-                </p>
+              <div className={`flex-1 rounded-lg border ${a.border} ${a.bg} px-3 py-2`}>
+                <div className="flex items-center justify-between gap-2">
+                  <p className={`text-[10px] font-bold ${a.color}`}>
+                    Step {index + 1}: {a.agent}
+                  </p>
+                  <Check className="h-3 w-3 flex-shrink-0 text-emerald-400" />
+                </div>
                 <p className="text-[11px] text-slate-300 leading-relaxed">
                   {a.result}
                 </p>
               </div>
-              <Check className="w-3 h-3 text-emerald-400 flex-shrink-0 mt-1" />
             </div>
           );
         })}

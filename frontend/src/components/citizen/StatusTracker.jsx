@@ -29,15 +29,14 @@ import { InteractiveMap } from "../common/InteractiveMap";
 import { formatDate } from "../../utils/formatters";
 
 const SAMPLE_TRACK_IDS = [
-  "CMP-2026-8821",
-  "CMP-2026-7419",
-  "CMP-2026-5510",
-  "CMP-2026-3392",
-  "CMP-2026-0045"
+  "CMP-55503AB2",
+  "CMP-2A66E6B8",
+  "CMP-FC642D28",
+  "CMP-73523B22"
 ];
 
 export function StatusTracker() {
-  const { activeTrackingId, setActiveTrackingId, demoMode, showToast } = useApp();
+  const { activeTrackingId, setActiveTrackingId, showToast } = useApp();
 
   const [searchId, setSearchId] = useState(activeTrackingId || "");
   const [loading, setLoading] = useState(false);
@@ -51,7 +50,7 @@ export function StatusTracker() {
   const [linkCopied, setLinkCopied] = useState(false);
 
   const handleSearch = async (idToSearch) => {
-    const targetId = (idToSearch || searchId).trim();
+    const targetId = (idToSearch || searchId).trim().toUpperCase();
     if (!targetId) {
       setErrorMsg("Please enter a valid Complaint Tracking ID.");
       return;
@@ -62,9 +61,10 @@ export function StatusTracker() {
     setHasCoSigned(false);
 
     try {
-      const data = await getComplaintStatus(targetId, demoMode);
+      const data = await getComplaintStatus(targetId);
       setStatusData(data);
       setCoSignCount(data.raw_case?.citizen_count || 1);
+      setSearchId(data.complaint_id);
       setActiveTrackingId(targetId);
       setLoading(false);
     } catch (err) {

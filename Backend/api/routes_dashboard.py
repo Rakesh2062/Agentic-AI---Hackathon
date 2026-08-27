@@ -4,20 +4,32 @@ Dashboard routes — department-facing case queues and state transitions.
 
 import logging
 from datetime import datetime, timezone
+from typing import Optional
 
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel
 
 from schemas.models import (
     CaseResponse,
     CaseUpdateRequest,
     DepartmentStats,
+    Priority,
     Status,
     StatusUpdate,
 )
 from agents.config import CATEGORY_DEPARTMENT_MAP
 from database.connection import get_db
 from database.collections import COMPLAINTS_COLLECTION, COMPLAINT_UPDATES_COLLECTION
+
+USERS_COLLECTION = "users"
+
+
+class ValidateComplaintRequest(BaseModel):
+    validatedSeverity: str = "MEDIUM"
+    officerName: str = "Civic Official"
+    highPublicImpact: bool = False
+    isRecurringProblem: bool = False
 
 log = logging.getLogger(__name__)
 
@@ -34,6 +46,9 @@ STATUS_MESSAGES = {
 
 router = APIRouter(prefix="/dashboard", tags=["Department Dashboard"])
 
+# Second router for user-scoped complaint queries
+user_router = APIRouter(prefix="/user", tags=["User Complaints"])
+
 
 @router.get(
     "/departments",
@@ -46,6 +61,152 @@ async def list_departments():
             {"id": cat, "name": name}
             for cat, name in CATEGORY_DEPARTMENT_MAP.items()
         ]
+    }
+
+
+@router.get(
+    "/cases",
+    response_model=list[CaseResponse],
+    summary="Get all cases (officials only)",
+    description="Returns all complaints stored in MongoDB, for the official dashboard.",
+)
+async def get_all_cases(
+    status_filter: Status | None = Query(None, alias="status"),
+    limit: int = Query(100, le=500),
+    skip: int = Query(0, ge=0),
+):
+    """Fetch all cases for the official dashboard queue."""
+    db = get_db()
+
+    query: dict = {}
+    if status_filter:
+        query["status"] = status_filter.value
+
+    cursor = (
+        db[COMPLAINTS_COLLECTION]
+        .find(query)
+        .sort("created_at", -1)
+        .skip(skip)
+        .limit(limit)
+    )
+
+    cases = []
+    async for doc in cursor:
+        doc["_id"] = str(doc["_id"])
+        if "complaint_id" not in doc and "complaint_number" in doc:
+            doc["complaint_id"] = doc["complaint_number"]
+        cases.append(doc)
+
+    return cases
+
+
+@router.post(
+    "/cases/{case_id}/validate",
+    summary="Validate a complaint and award civic points",
+    description="Official validates a complaint, sets severity, and awards civic points to the reporting citizen.",
+)
+async def validate_complaint(case_id: str, validation: ValidateComplaintRequest):
+    """Validate a complaint and award multi-factor civic points."""
+    db = get_db()
+
+    try:
+        oid = ObjectId(case_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid case ID format")
+
+    case_doc = await db[COMPLAINTS_COLLECTION].find_one({"_id": oid})
+    if not case_doc:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    severity = validation.validatedSeverity.upper()
+    base_points = {"CRITICAL": 50, "HIGH": 30, "MEDIUM": 15, "LOW": 5}.get(severity, 15)
+    evidence_bonus = 5 if case_doc.get("attachments") else 0
+    impact_bonus = 10 if validation.highPublicImpact else 0
+    recurring_bonus = 5 if validation.isRecurringProblem else 0
+    total_points = base_points + evidence_bonus + impact_bonus + recurring_bonus
+
+    points_reason = (
+        f"+{base_points} Validated {severity} severity"
+        + (f" +{evidence_bonus} Quality Evidence" if evidence_bonus else "")
+        + (f" +{impact_bonus} High Public Impact" if impact_bonus else "")
+        + (f" +{recurring_bonus} Recurring Infrastructure" if recurring_bonus else "")
+    )
+
+    now = datetime.now(timezone.utc)
+    status_entry = {
+        "status": "assigned",
+        "message": f"Officially validated by {validation.officerName}. Awarded +{total_points} Civic Points. {points_reason}",
+        "timestamp": now.isoformat(),
+        "updated_by": validation.officerName,
+    }
+
+    await db[COMPLAINTS_COLLECTION].update_one(
+        {"_id": oid},
+        {
+            "$set": {
+                "status": "assigned",
+                "validatedSeverity": severity,
+                "civicPointsAwarded": total_points,
+                "pointsBreakdown": {
+                    "basePoints": base_points,
+                    "evidenceBonus": evidence_bonus,
+                    "impactBonus": impact_bonus,
+                    "recurringBonus": recurring_bonus,
+                    "reason": points_reason,
+                },
+                "updated_at": now,
+            },
+            "$push": {"status_history": status_entry},
+        },
+    )
+
+    # Award points to the citizen who filed the complaint
+    citizen_id = case_doc.get("userId") or case_doc.get("citizen_id")
+    complaint_id_str = case_doc.get("complaint_id", "")
+
+    if citizen_id and len(citizen_id) == 24:
+        try:
+            citizen_oid = ObjectId(citizen_id)
+            citizen = await db[USERS_COLLECTION].find_one({"_id": citizen_oid})
+            if citizen and citizen.get("role") != "official":
+                # Prevent duplicate points
+                existing_history = citizen.get("pointHistory", [])
+                already_awarded = any(tx.get("caseId") == complaint_id_str for tx in existing_history)
+                if not already_awarded:
+                    new_tx = {
+                        "id": f"pt_{ObjectId()}",
+                        "caseId": complaint_id_str,
+                        "title": case_doc.get("summary") or case_doc.get("raw_text", "")[:80],
+                        "reason": points_reason,
+                        "points": total_points,
+                        "date": now.strftime("%b %d, %Y"),
+                        "timestamp": now.isoformat(),
+                        "status": "Validated ✓",
+                    }
+                    await db[USERS_COLLECTION].update_one(
+                        {"_id": citizen_oid},
+                        {
+                            "$inc": {
+                                "civicPoints": total_points,
+                                "reportsValidated": 1,
+                                "estimatedImpacted": total_points * 20,
+                            },
+                            "$push": {"pointHistory": {"$each": [new_tx], "$position": 0}},
+                        },
+                    )
+        except Exception as e:
+            log.warning("Failed to award points to citizen %s: %s", citizen_id, e)
+
+    updated = await db[COMPLAINTS_COLLECTION].find_one({"_id": oid})
+    updated["_id"] = str(updated["_id"])
+    if "complaint_id" not in updated and "complaint_number" in updated:
+        updated["complaint_id"] = updated["complaint_number"]
+
+    return {
+        "updatedCase": updated,
+        "pointsAwarded": total_points,
+        "pointsReason": points_reason,
+        "userId": citizen_id,
     }
 
 
@@ -255,3 +416,39 @@ async def update_case_status(case_id: str, update: CaseUpdateRequest):
     if "complaint_id" not in updated and "complaint_number" in updated:
         updated["complaint_id"] = updated["complaint_number"]
     return updated
+
+
+# ---------------------------------------------------------------------------
+# User-scoped complaint routes
+# ---------------------------------------------------------------------------
+
+@user_router.get(
+    "/{user_id}/complaints",
+    response_model=list[CaseResponse],
+    summary="Get complaints filed by a specific user",
+    description="Returns all DB-stored complaints where userId or citizen_id matches.",
+)
+async def get_user_complaints(
+    user_id: str,
+    limit: int = Query(100, le=500),
+    skip: int = Query(0, ge=0),
+):
+    """Fetch complaints filed by a specific user."""
+    db = get_db()
+
+    cursor = (
+        db[COMPLAINTS_COLLECTION]
+        .find({"$or": [{"userId": user_id}, {"citizen_id": user_id}]})
+        .sort("created_at", -1)
+        .skip(skip)
+        .limit(limit)
+    )
+
+    cases = []
+    async for doc in cursor:
+        doc["_id"] = str(doc["_id"])
+        if "complaint_id" not in doc and "complaint_number" in doc:
+            doc["complaint_id"] = doc["complaint_number"]
+        cases.append(doc)
+
+    return cases

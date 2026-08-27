@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -35,6 +36,15 @@ class DuplicateAgent:
     def __init__(self, llm_client: BaseLLMClient) -> None:
         self.llm = llm_client
 
+    @staticmethod
+    def _text_overlap(left: str, right: str) -> float:
+        """Return a simple word-overlap score for deterministic local matches."""
+        left_words = set(re.findall(r"[a-z0-9]+", left.lower()))
+        right_words = set(re.findall(r"[a-z0-9]+", right.lower()))
+        if not left_words or not right_words:
+            return 0.0
+        return len(left_words & right_words) / len(left_words | right_words)
+
     async def run(self, state: ComplaintState) -> DuplicateResult:
         """Execute the full duplicate-detection pipeline."""
         started = datetime.now(timezone.utc)
@@ -53,6 +63,45 @@ class DuplicateAgent:
                 for c in candidates
                 if c.get("complaint_id") != state.complaint_id
             ]
+
+            # A vector index may not contain older records yet.  Always check
+            # very nearby reports as well, so repeat submissions at the same
+            # location are never missed merely because an embedding is absent.
+            location_candidates = []
+            if state.latitude is not None and state.longitude is not None:
+                location_candidates = await search_tools.search_complaints_by_location(
+                    state.latitude, state.longitude, radius_km=0.05
+                )
+                for candidate in location_candidates:
+                    candidate["similarity_score"] = self._text_overlap(
+                        state.description, candidate.get("description_snippet", "")
+                    )
+                    candidate["same_location"] = True
+
+                # Exact/sufficiently matching reports within 50m are a
+                # duplicate without requiring a non-deterministic LLM decision.
+                exact_match = next(
+                    (c for c in location_candidates if c["similarity_score"] >= 0.65),
+                    None,
+                )
+                if exact_match:
+                    result = DuplicateResult(
+                        is_duplicate=True,
+                        duplicate_of=exact_match["complaint_id"],
+                        confidence=0.98,
+                        reason="Matching issue already reported at the same location.",
+                    )
+                    state.is_duplicate = result.is_duplicate
+                    state.duplicate_of = result.duplicate_of
+                    state.duplicate_confidence = result.confidence
+                    self._record_audit(state, started, True, result)
+                    return result
+
+                known_ids = {candidate.get("complaint_id") for candidate in candidates}
+                candidates.extend(
+                    candidate for candidate in location_candidates
+                    if candidate.get("complaint_id") not in known_ids
+                )
 
             # Store similar complaints in state
             state.similar_complaints = [
@@ -95,9 +144,6 @@ class DuplicateAgent:
             state.is_duplicate = result.is_duplicate
             state.duplicate_of = result.duplicate_of
             state.duplicate_confidence = result.confidence
-
-            # Store the embedding for future searches
-            await search_tools.store_embedding(state.complaint_id, embedding)
 
             self._record_audit(state, started, True, result)
             logger.info(

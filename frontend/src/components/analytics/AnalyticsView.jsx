@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from "react";
-import { getAnalyticsHotspots, getAnalyticsMetrics, getDepartmentCases } from "../../api/endpoints";
-import { useApp } from "../../context/AppContext";
-import { CategoryBadge } from "../common/Badge";
+import React, { useState, useEffect, useMemo } from "react";
+import { getAnalyticsMetrics, getDepartmentCases } from "../../api/endpoints";
+import { CategoryBadge, PriorityBadge, StatusBadge } from "../common/Badge";
 import { Category } from "../../utils/constants";
 import { InteractiveMap } from "../common/InteractiveMap";
+import { formatDate } from "../../utils/formatters";
 import { 
   BarChart3, 
   Flame, 
@@ -16,36 +16,105 @@ import {
   AlertTriangle,
   Clock,
   Layers,
-  Map as MapIcon
+  Map as MapIcon,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 
+const LIFECYCLE_STEPS = [
+  { key: "submitted", label: "Submitted" },
+  { key: "under_review", label: "AI Review" },
+  { key: "assigned", label: "Assigned" },
+  { key: "in_progress", label: "In Progress" },
+  { key: "inspected", label: "Inspected" },
+  { key: "resolved", label: "Resolved" },
+];
+
 export function AnalyticsView() {
-  const { demoMode } = useApp();
-  const [hotspots, setHotspots] = useState([]);
   const [metrics, setMetrics] = useState(null);
   const [allCases, setAllCases] = useState([]);
   const [selectedWardForMap, setSelectedWardForMap] = useState("Ward 4 - Central West");
+  const [selectedComplaint, setSelectedComplaint] = useState(null);
+  const [expandedComplaintId, setExpandedComplaintId] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function loadAnalytics() {
-      setLoading(true);
+    async function loadAnalytics(isInitialLoad = false) {
+      if (isInitialLoad) setLoading(true);
       try {
-        const [hotspotsRes, metricsRes, casesRes] = await Promise.all([
-          getAnalyticsHotspots(demoMode),
-          getAnalyticsMetrics(demoMode),
-          getDepartmentCases("all", demoMode),
+        const [metricsRes, casesRes] = await Promise.all([
+          getAnalyticsMetrics(),
+          getDepartmentCases("all"),
         ]);
-        setHotspots(hotspotsRes || []);
         setMetrics(metricsRes || null);
         setAllCases(casesRes || []);
-        setLoading(false);
       } catch (e) {
-        setLoading(false);
+        // Keep the most recently loaded data visible during a temporary refresh failure.
+      } finally {
+        if (isInitialLoad) setLoading(false);
       }
     }
-    loadAnalytics();
-  }, [demoMode]);
+    loadAnalytics(true);
+    const refreshInterval = window.setInterval(() => loadAnalytics(), 15000);
+    return () => window.clearInterval(refreshInterval);
+  }, []);
+
+  const wardHotspots = useMemo(() => {
+    const priorityRank = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
+    const complaintTime = (complaint) => new Date(
+      complaint.created_at || complaint.submitted_at || complaint.updated_at || 0
+    ).getTime();
+    const compareComplaints = (left, right) => {
+      const priorityDifference = (priorityRank[right.priority] || 0) - (priorityRank[left.priority] || 0);
+      return priorityDifference || complaintTime(right) - complaintTime(left);
+    };
+
+    const wards = new Map();
+    allCases
+      .filter((complaint) => !["resolved", "closed"].includes(complaint.status))
+      .forEach((complaint) => {
+      const ward = complaint.location?.ward || "Unassigned Ward";
+      const hotspot = wards.get(ward) || { ward, complaint_count: 0, complaint: null };
+      hotspot.complaint_count += 1;
+      if (!hotspot.complaint || compareComplaints(complaint, hotspot.complaint) < 0) {
+        hotspot.complaint = complaint;
+      }
+      wards.set(ward, hotspot);
+      });
+
+    return [...wards.values()].sort((left, right) => compareComplaints(left.complaint, right.complaint));
+  }, [allCases]);
+
+  const recentlyResolved = useMemo(() => (
+    allCases
+      .filter((complaint) => ["resolved", "closed"].includes(complaint.status))
+      .sort((left, right) => new Date(
+        right.updated_at || right.created_at || right.submitted_at || 0
+      ) - new Date(left.updated_at || left.created_at || left.submitted_at || 0))
+      .slice(0, 5)
+  ), [allCases]);
+
+  const resolutionDuration = (complaint) => {
+    const startedAt = new Date(complaint.created_at || complaint.submitted_at || 0).getTime();
+    const resolvedAt = new Date(complaint.resolved_at || complaint.updated_at || 0).getTime();
+    const elapsedMinutes = Math.max(0, Math.round((resolvedAt - startedAt) / 60000));
+    if (elapsedMinutes < 60) return `${elapsedMinutes} min`;
+    const hours = Math.floor(elapsedMinutes / 60);
+    const minutes = elapsedMinutes % 60;
+    return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
+  };
+
+  const statusProgress = (status) => ({
+    submitted: 15,
+    under_review: 30,
+    assigned: 50,
+    in_progress: 70,
+    inspected: 85,
+    resolved: 100,
+    closed: 100,
+    escalated: 60,
+    duplicate: 100,
+  }[status] ?? 0);
 
   const categoryBreakdown = [
     { name: "Roads & Pavements", category: Category.ROADS, count: 48, percentage: 32, color: "bg-sky-500" },
@@ -89,10 +158,10 @@ export function AnalyticsView() {
             <Layers className="w-4 h-4 text-sky-400" />
           </div>
           <p className="text-2xl sm:text-3xl font-extrabold text-white font-mono">
-            {metrics?.total_complaints_processed ?? 184}
+            {metrics?.total_complaints_processed ?? 0}
           </p>
           <p className="text-[11px] text-slate-400 mt-1">
-            Across 6 municipal zones
+            Across {metrics?.active_wards ?? 0} active wards
           </p>
         </div>
 
@@ -104,10 +173,10 @@ export function AnalyticsView() {
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
           </div>
           <p className="text-2xl sm:text-3xl font-extrabold text-emerald-400 font-mono">
-            {metrics?.ai_classification_accuracy ?? 97.4}%
+            {metrics?.ai_classification_accuracy ?? 0}%
           </p>
           <p className="text-[11px] text-slate-400 mt-1">
-            Validation confidence score
+            {metrics?.classified_complaints ?? 0} complaints classified
           </p>
         </div>
 
@@ -119,7 +188,7 @@ export function AnalyticsView() {
             <Users className="w-4 h-4 text-purple-400" />
           </div>
           <p className="text-2xl sm:text-3xl font-extrabold text-purple-300 font-mono">
-            {metrics?.duplicates_merged_count ?? 32}
+            {metrics?.duplicates_merged_count ?? 0}
           </p>
           <p className="text-[11px] text-slate-400 mt-1">
             Co-signed reports consolidated
@@ -134,10 +203,10 @@ export function AnalyticsView() {
             <Zap className="w-4 h-4 text-amber-400" />
           </div>
           <p className="text-2xl sm:text-3xl font-extrabold text-amber-400 font-mono">
-            {metrics?.sla_compliance_rate ?? 93.8}%
+            {metrics?.sla_compliance_rate ?? 0}%
           </p>
           <p className="text-[11px] text-slate-400 mt-1">
-            Resolved within target SLA
+            {metrics?.resolved_complaints ?? 0} resolved complaints
           </p>
         </div>
       </div>
@@ -159,7 +228,7 @@ export function AnalyticsView() {
         <InteractiveMap
           mode="heatmap"
           existingCases={allCases}
-          selectedWard={selectedWardForMap}
+          selectedCase={selectedComplaint}
           height="h-80 sm:h-96"
         />
       </div>
@@ -182,56 +251,149 @@ export function AnalyticsView() {
           </div>
 
           <p className="text-xs text-slate-400">
-            Click any ward to highlight on map:
+            Highest-priority complaint per ward; equal priorities are ordered by most recent report.
           </p>
 
           <div className="space-y-3">
-            {hotspots.map((hotspot, idx) => {
+            {wardHotspots.map((hotspot) => {
               const isSelected = selectedWardForMap === hotspot.ward;
+              const complaint = hotspot.complaint;
+              const complaintId = complaint.id || complaint._id || complaint.complaint_id;
+              const isExpanded = expandedComplaintId === complaintId;
+              const currentStep = LIFECYCLE_STEPS.findIndex((step) => step.key === complaint.status);
+              const resolvedStep = currentStep === -1 ? 0 : currentStep;
+
+              const selectComplaint = () => {
+                setSelectedWardForMap(hotspot.ward);
+                setSelectedComplaint(complaint);
+              };
 
               return (
                 <div
-                  key={idx}
-                  onClick={() => setSelectedWardForMap(hotspot.ward)}
-                  className={`bg-slate-950/70 border rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 cursor-pointer transition ${
+                  key={hotspot.ward}
+                  onClick={selectComplaint}
+                  className={`bg-slate-950/70 border rounded-xl p-4 cursor-pointer transition ${
                     isSelected
                       ? "border-sky-500 bg-sky-950/20 shadow-glow-primary"
                       : "border-slate-800 hover:border-slate-700"
                   }`}
                 >
-                  <div className="space-y-1">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <MapPin className="w-4 h-4 text-sky-400" />
                       <span className="font-bold text-slate-100 text-sm">{hotspot.ward}</span>
-                      <span
-                        className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border uppercase ${
-                          hotspot.risk_level === "HIGH"
-                            ? "bg-rose-950/80 text-rose-300 border-rose-800"
-                            : "bg-amber-950/80 text-amber-300 border-amber-800"
-                        }`}
-                      >
-                        {hotspot.risk_level} Risk
-                      </span>
+                      <PriorityBadge priority={complaint.priority} size="sm" />
                     </div>
                     <p className="text-xs text-slate-400">
-                      Top issue: <span className="text-slate-300 font-medium">{hotspot.top_issue}</span>
+                      Top issue: <span className="text-slate-300 font-medium">{complaint.title || complaint.raw_text || complaint.description}</span>
                     </p>
-                  </div>
-
-                  <div className="flex items-center gap-3 sm:text-right w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 border-slate-800/80 pt-2 sm:pt-0">
-                    <CategoryBadge category={hotspot.primary_category} size="sm" />
-                    <div className="text-right">
-                      <span className="text-sm font-extrabold text-white font-mono block">
-                        {hotspot.complaint_count} cases
-                      </span>
-                      <span className="text-[10px] text-slate-400">
-                        Avg {hotspot.avg_sla_hours}h SLA
+                    <div className="flex items-center gap-2 pt-1">
+                      <StatusBadge status={complaint.status} size="sm" />
+                      <div className="h-1.5 w-24 overflow-hidden rounded-full bg-slate-800" aria-label={`Resolution progress: ${statusProgress(complaint.status)}%`}>
+                        <div
+                          className="h-full rounded-full bg-sky-500"
+                          style={{ width: `${statusProgress(complaint.status)}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] font-mono text-slate-400">
+                        {statusProgress(complaint.status)}% progress
                       </span>
                     </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 sm:text-right w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 border-slate-800/80 pt-2 sm:pt-0">
+                      <CategoryBadge category={complaint.category} size="sm" />
+                      <div className="text-right">
+                        <span className="text-sm font-extrabold text-white font-mono block">
+                          {hotspot.complaint_count} cases
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          Updated: {formatDate(complaint.updated_at || complaint.created_at || complaint.submitted_at)}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        aria-label={isExpanded ? "Hide resolution progress" : "Show resolution progress"}
+                        aria-expanded={isExpanded}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          selectComplaint();
+                          setExpandedComplaintId(isExpanded ? null : complaintId);
+                        }}
+                        className="rounded-lg border border-slate-700 p-1.5 text-sky-400 hover:bg-sky-950/70"
+                      >
+                        {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
+                  {isExpanded && (
+                    <div className="mt-4 border-t border-slate-800 pt-4">
+                      <p className="mb-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                        Resolution progress — updates automatically every 15 seconds
+                      </p>
+                      <div className="flex items-start justify-between gap-1">
+                        {LIFECYCLE_STEPS.map((step, index) => {
+                          const complete = index < resolvedStep;
+                          const active = index === resolvedStep;
+                          return (
+                            <div key={step.key} className="flex min-w-0 flex-1 flex-col items-center text-center">
+                              <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
+                                active ? "bg-sky-500 text-white ring-4 ring-sky-500/20" : complete ? "bg-emerald-500 text-slate-950" : "bg-slate-800 text-slate-500"
+                              }`}>
+                                {complete ? "✓" : index + 1}
+                              </span>
+                              <span className={`mt-2 text-[9px] sm:text-[10px] ${active ? "font-bold text-sky-300" : complete ? "text-slate-200" : "text-slate-500"}`}>
+                                {step.label}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
+          </div>
+
+          <div className="border-t border-slate-800 pt-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-400">
+                Recently Resolved Problems
+              </h3>
+              <span className="text-[10px] font-mono text-slate-500">Latest 5</span>
+            </div>
+            <div className="space-y-2">
+              {recentlyResolved.length ? recentlyResolved.map((complaint) => (
+                <button
+                  key={complaint.id || complaint._id || complaint.complaint_id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedWardForMap(complaint.location?.ward || "Unassigned Ward");
+                    setSelectedComplaint(complaint);
+                  }}
+                  className="flex w-full items-center justify-between gap-3 rounded-lg border border-emerald-900/60 bg-emerald-950/20 px-3 py-2 text-left transition hover:border-emerald-600"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-semibold text-slate-200">
+                      {complaint.title || complaint.summary || complaint.raw_text || complaint.description}
+                    </p>
+                    <p className="text-[10px] text-slate-400">
+                      {complaint.location?.ward || "Unassigned Ward"} · Resolved by {complaint.department || complaint.recommended_department || "Municipal Dispatch"}
+                    </p>
+                    <p className="text-[10px] text-slate-400">
+                      Resolution time: {resolutionDuration(complaint)} · {formatDate(complaint.resolved_at || complaint.updated_at || complaint.created_at || complaint.submitted_at)}
+                    </p>
+                  </div>
+                  <StatusBadge status={complaint.status} size="sm" />
+                </button>
+              )) : (
+                <p className="rounded-lg border border-dashed border-slate-700 px-3 py-3 text-xs text-slate-500">
+                  No resolved complaints yet.
+                </p>
+              )}
+            </div>
           </div>
         </div>
 

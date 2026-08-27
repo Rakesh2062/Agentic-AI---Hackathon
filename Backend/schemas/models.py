@@ -245,6 +245,13 @@ class StatusResponse(BaseModel):
     priority: Optional[str] = None
     last_updated: Optional[datetime] = None
     history: list[StatusUpdate] = Field(default_factory=list)
+    confidence: Optional[float] = None
+    citizen_count: int = 1
+    location: Optional[LocationInfo] = None
+    sla_deadline: Optional[datetime] = None
+    validatedSeverity: Optional[str] = None
+    civicPointsAwarded: int = 0
+    pointsBreakdown: Optional[dict[str, Any]] = None
 
 
 class DepartmentStats(BaseModel):

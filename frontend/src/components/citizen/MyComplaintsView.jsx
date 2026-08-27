@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 
 export function MyComplaintsView({ onNewReportClick }) {
-  const { currentUser, demoMode } = useAuth();
+  const { currentUser } = useAuth();
   const { setActiveTrackingId, setActiveTab, setCitizenSubTab } = useApp();
 
   const [complaints, setComplaints] = useState([]);
@@ -34,7 +34,7 @@ export function MyComplaintsView({ onNewReportClick }) {
     if (!currentUser) return;
     setLoading(true);
     try {
-      const data = await getUserComplaints(currentUser.id, demoMode);
+      const data = await getUserComplaints(currentUser.id);
       setComplaints(data || []);
       setLoading(false);
     } catch (e) {
@@ -44,7 +44,7 @@ export function MyComplaintsView({ onNewReportClick }) {
 
   useEffect(() => {
     loadUserComplaints();
-  }, [currentUser, demoMode]);
+  }, [currentUser]);
 
   const filtered = complaints.filter((c) => {
     const q = searchQuery.toLowerCase();

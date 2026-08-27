@@ -13,7 +13,6 @@ import {
   Paperclip, 
   UploadCloud, 
   X, 
-  Tag, 
   Mic, 
   MicOff, 
   Wand2, 
@@ -25,7 +24,6 @@ import {
 import { createComplaint, getDepartmentCases } from "../../api/endpoints";
 import { useApp } from "../../context/AppContext";
 import { useAuth } from "../../context/AuthContext";
-import { Category, CategoryLabels, Priority } from "../../utils/constants";
 import { ComplaintSuccess } from "./ComplaintSuccess";
 import { GoogleMapsPicker } from "../common/GoogleMapsPicker";
 import { AgentPipelineOverlay, AgentPipelineInline } from "../common/AgentPipelineOverlay";
@@ -33,58 +31,43 @@ import { AgentPipelineOverlay, AgentPipelineInline } from "../common/AgentPipeli
 const QUICK_PROMPTS = [
   {
     title: "Deep Pothole at Main Intersection",
-    category: Category.ROADS,
     text: "Deep hazardous pothole in middle lane near 5th Avenue and Oak Street intersection causing cars to swerve into oncoming traffic.",
     ward: "Ward 4 - Central West",
     address: "850 5th Avenue intersection",
-    severity: Priority.HIGH,
   },
   {
     title: "Clean Water Pipeline Rupture",
-    category: Category.WATER,
     text: "High-pressure clean water supply pipeline rupture on sidewalk near residential block 12, flooding street and dropping pressure in 100+ homes.",
     ward: "Ward 2 - North Heights",
     address: "1420 Oakridge Lane, Block 12",
-    severity: Priority.HIGH,
   },
   {
     title: "Commercial Waste Bin Overflow",
-    category: Category.WASTE,
     text: "Commercial garbage dumpsters overflowing onto pedestrian sidewalk outside central market, strong odor and blocking pathway.",
     ward: "Ward 3 - Downtown Core",
     address: "310 Market Square, outside Greenleaf",
-    severity: Priority.MEDIUM,
   },
   {
     title: "Three Broken Streetlights in Row",
-    category: Category.STREETLIGHT,
     text: "Three consecutive streetlights dark along pedestrian corridor near school zone creating severe night visibility hazard.",
     ward: "Ward 5 - University District",
     address: "Elm St Pedestrian Corridor, Poles 401-403",
-    severity: Priority.MEDIUM,
   },
   {
     title: "Broken City Park Water Station",
-    category: Category.OTHER,
-    customSpec: "Broken drinking water dispenser and valve flooding park entrance",
     text: "Public drinking water fountain valve sheared off and water continuously overflowing across accessible pathway.",
     ward: "Ward 1 - South Valley",
     address: "Central Park West Pavillion",
-    severity: Priority.LOW,
   },
 ];
 
 export function ComplaintForm() {
-  const { demoMode, showToast, navigateToTrack } = useApp();
+  const { showToast, navigateToTrack } = useApp();
   const { currentUser, isOfficial, recordComplaintSubmitted } = useAuth();
 
   // Form Fields
   const [title, setTitle] = useState("");
-  const [category, setCategory] = useState(Category.ROADS);
-  const [customCategorySpec, setCustomCategorySpec] = useState("");
-  const [subCategory, setSubCategory] = useState("");
   const [rawText, setRawText] = useState("");
-  const [severityEstimate, setSeverityEstimate] = useState(Priority.MEDIUM);
 
   // Location
   const [address, setAddress] = useState("");
@@ -108,10 +91,10 @@ export function ComplaintForm() {
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
-    getDepartmentCases("all", demoMode).then((cases) => {
+    getDepartmentCases("all").then((cases) => {
       if (cases) setExistingCases(cases);
     });
-  }, [demoMode]);
+  }, []);
 
   // Officials are not permitted to submit citizen reports
   if (isOfficial) {
@@ -128,12 +111,9 @@ export function ComplaintForm() {
 
   const handleQuickPrompt = (prompt) => {
     setTitle(prompt.title);
-    setCategory(prompt.category);
-    if (prompt.customSpec) setCustomCategorySpec(prompt.customSpec);
     setRawText(prompt.text);
     setWard(prompt.ward);
     setAddress(prompt.address);
-    setSeverityEstimate(prompt.severity);
   };
 
   const handleMapLocationSelect = (loc) => {
@@ -256,21 +236,12 @@ export function ComplaintForm() {
       return;
     }
 
-    if (category === Category.OTHER && !customCategorySpec.trim()) {
-      setErrorMsg("Please specify the custom issue description under 'Others'.");
-      return;
-    }
-
     setErrorMsg("");
     setIsSubmitting(true);
 
     const payload = {
       title: title.trim() || rawText.slice(0, 60),
       raw_text: rawText.trim(),
-      category: category,
-      custom_category_specification: category === Category.OTHER ? customCategorySpec.trim() : undefined,
-      sub_category: subCategory.trim() || undefined,
-      priority: severityEstimate,
       // Automatically associate authenticated user ID & profile
       userId: currentUser?.id || "usr_civilian_01",
       citizen_name: currentUser?.name || "Civilian Participant",
@@ -286,7 +257,7 @@ export function ComplaintForm() {
     };
 
     try {
-      const response = await createComplaint(payload, demoMode);
+      const response = await createComplaint(payload);
       if (recordComplaintSubmitted) {
         recordComplaintSubmitted(currentUser?.id);
       }
@@ -314,8 +285,6 @@ export function ComplaintForm() {
     setCreatedCase(null);
     setTitle("");
     setRawText("");
-    setCustomCategorySpec("");
-    setSubCategory("");
     setAddress("");
     setAttachments([]);
     setErrorMsg("");
@@ -373,60 +342,19 @@ export function ComplaintForm() {
           </div>
         </div>
 
-        {/* Issue Title & Category Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block mb-1.5">
-              Issue Title / Headline
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Deep Pothole at Main Intersection"
-              className="w-full bg-slate-950 border border-slate-700 focus:border-sky-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block mb-1.5">
-              Category <span className="text-red-400">*</span>
-            </label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-700 focus:border-sky-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 font-semibold outline-none"
-            >
-              {Object.entries(CategoryLabels).map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
+        {/* Optional issue title — AI determines category and department. */}
+        <div>
+          <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block mb-1.5">
+            Issue Title / Headline
+          </label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Deep Pothole at Main Intersection"
+            className="w-full bg-slate-950 border border-slate-700 focus:border-sky-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 outline-none"
+          />
         </div>
-
-        {/* Dynamic "Please specify the issue" input when "Others" is selected */}
-        {category === Category.OTHER && (
-          <div className="bg-sky-950/30 border border-sky-800/60 rounded-xl p-3.5 space-y-2 animate-slide-up">
-            <label className="text-xs font-bold text-sky-300 flex items-center gap-1.5">
-              <Tag className="w-3.5 h-3.5 text-sky-400" />
-              <span>Please specify the issue:</span>
-              <span className="text-red-400">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={customCategorySpec}
-              onChange={(e) => setCustomCategorySpec(e.target.value)}
-              placeholder="e.g. Broken public park water fountain valve flooding pathway"
-              className="w-full bg-slate-900 border border-slate-700 focus:border-sky-500 rounded-lg px-3.5 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none"
-            />
-            <p className="text-[11px] text-slate-400">
-              The AI Classification Agent will analyze this specification to route to the appropriate department.
-            </p>
-          </div>
-        )}
 
         {/* Description Textarea + Voice & AI Tools */}
         <div>

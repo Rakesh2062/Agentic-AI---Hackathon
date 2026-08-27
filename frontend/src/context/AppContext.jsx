@@ -8,7 +8,6 @@ export function AppProvider({ children }) {
   const [citizenSubTab, setCitizenSubTab] = useState("report"); // 'report' | 'track'
   const [selectedDepartment, setSelectedDepartment] = useState("Roads & Infrastructure");
   const [activeTrackingId, setActiveTrackingId] = useState("");
-  const [demoMode, setDemoMode] = useState(false);
   const [backendOnline, setBackendOnline] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
 
@@ -58,8 +57,6 @@ export function AppProvider({ children }) {
         setSelectedDepartment,
         activeTrackingId,
         setActiveTrackingId,
-        demoMode,
-        setDemoMode,
         backendOnline,
         toastMessage,
         showToast,

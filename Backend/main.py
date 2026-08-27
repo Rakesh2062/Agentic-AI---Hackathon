@@ -22,9 +22,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes_intake import router as intake_router
-from api.routes_dashboard import router as dashboard_router
+from api.routes_dashboard import router as dashboard_router, user_router
 from api.routes_analytics import router as analytics_router
 from api.routes_status import router as status_router
+from api.routes_auth import router as auth_router
 from database.connection import ping_async_db, close_async_client
 
 logger = logging.getLogger("civicpulse")
@@ -85,6 +86,8 @@ app.include_router(intake_router, prefix=PREFIX)
 app.include_router(dashboard_router, prefix=PREFIX)
 app.include_router(analytics_router, prefix=PREFIX)
 app.include_router(status_router, prefix=PREFIX)
+app.include_router(auth_router, prefix=PREFIX)
+app.include_router(user_router, prefix=PREFIX)
 
 
 @app.get("/", tags=["Health"])

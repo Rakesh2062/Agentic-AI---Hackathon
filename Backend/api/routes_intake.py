@@ -28,20 +28,74 @@ async def create_complaint(submission: ComplaintCreate):
     try:
         orchestrator = Orchestrator()
         result = await orchestrator.process_complaint(submission.to_agent_dict())
-        
+
         case_data = result.state.model_dump()
-        
+
         # Ensure canonical schema compatibility
         if "complaint_number" not in case_data or not case_data["complaint_number"]:
             case_data["complaint_number"] = case_data.get("complaint_id")
         if "created_at" not in case_data or not case_data["created_at"]:
             case_data["created_at"] = case_data.get("submitted_at")
-        
+
+        # Store the public tracking fields in the same shape consumed by the
+        # dashboard and citizen status endpoints.  The orchestrator keeps
+        # these as `current_status` and `audit_events` internally.
+        case_data["status"] = case_data.get("current_status", "submitted")
+        case_data["department"] = (
+            case_data.get("admin_department_override")
+            or case_data.get("recommended_department")
+        )
+        case_data["updated_at"] = case_data.get("submitted_at")
+        case_data["status_history"] = [
+            {
+                "status": "submitted",
+                "message": "Complaint received and queued for AI processing.",
+                "timestamp": case_data.get("submitted_at"),
+                "updated_by": "CivicPulse Intake",
+            },
+            {
+                "status": case_data["status"],
+                "message": "AI analysis completed; the complaint is awaiting official review.",
+                "timestamp": case_data.get("submitted_at"),
+                "updated_by": "CivicPulse AI",
+            },
+        ]
+
+        # Enrich with frontend-submitted fields for user filtering & display
+        case_data["userId"] = submission.userId or ""
+        case_data["citizen_name"] = submission.citizen_name or ""
+        case_data["raw_text"] = submission.raw_text
+        case_data["attachments"] = submission.attachments or []
+        if submission.location:
+            case_data["location"] = submission.location.model_dump()
+
         # Insert into canonical complaints collection
         db = get_db()
         inserted = await db[COMPLAINTS_COLLECTION].insert_one(case_data)
         case_data["_id"] = str(inserted.inserted_id)
-        
+
+        # Persist the embedding after MongoDB assigns the ObjectId.  The
+        # duplicate agent can then find this report in later submissions.
+        try:
+            from agents.tools.search_tools import generate_embedding, store_embedding
+            embedding = await generate_embedding(case_data.get("description", submission.raw_text))
+            await store_embedding(case_data["_id"], embedding)
+        except Exception as exc:
+            log.warning("Could not store complaint embedding: %s", exc)
+
+        # Update user's reportsSubmitted counter (non-critical)
+        if submission.userId:
+            from api.routes_auth import USERS_COLLECTION
+            from bson import ObjectId as ObjId
+            try:
+                uid_oid = ObjId(submission.userId)
+                await db[USERS_COLLECTION].update_one(
+                    {"_id": uid_oid},
+                    {"$inc": {"reportsSubmitted": 1}},
+                )
+            except Exception:
+                pass
+
         return case_data
     except HTTPException:
         raise

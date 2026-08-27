@@ -125,7 +125,7 @@ export function AuthModal() {
     reader.readAsDataURL(file);
   };
 
-  const handleCivilianSubmit = (e) => {
+  const handleCivilianSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg("");
 
@@ -145,7 +145,7 @@ export function AuthModal() {
 
       setLoading(true);
       try {
-        registerCivilian({
+        await registerCivilian({
           name,
           email,
           contact,
@@ -165,7 +165,7 @@ export function AuthModal() {
       }
       setLoading(true);
       try {
-        loginCivilian(email, password);
+        await loginCivilian(email, password);
         setLoading(false);
       } catch (err) {
         setLoading(false);
@@ -174,7 +174,7 @@ export function AuthModal() {
     }
   };
 
-  const handleOfficialSubmit = (e) => {
+  const handleOfficialSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg("");
 
@@ -185,7 +185,7 @@ export function AuthModal() {
 
     setLoading(true);
     try {
-      loginOfficial(officialId, password);
+      await loginOfficial(officialId, password);
       setLoading(false);
     } catch (err) {
       setLoading(false);
@@ -193,7 +193,7 @@ export function AuthModal() {
     }
   };
 
-  const handleTouristSubmit = (e) => {
+  const handleTouristSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg("");
 
@@ -208,7 +208,7 @@ export function AuthModal() {
       }
       setLoading(true);
       try {
-        registerTourist({
+        await registerTourist({
           passportId,
           name,
           email,
@@ -229,7 +229,7 @@ export function AuthModal() {
       }
       setLoading(true);
       try {
-        loginTourist(email, password);
+        await loginTourist(email, password);
         setLoading(false);
       } catch (err) {
         setLoading(false);

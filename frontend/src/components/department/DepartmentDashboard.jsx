@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 
 export function DepartmentDashboard() {
-  const { selectedDepartment, setSelectedDepartment, demoMode, showToast } = useApp();
+  const { selectedDepartment, setSelectedDepartment, showToast } = useApp();
 
   const [viewMode, setViewMode] = useState("kanban"); // 'kanban' | 'list'
   const [cases, setCases] = useState([]);
@@ -45,8 +45,8 @@ export function DepartmentDashboard() {
     setLoading(true);
     try {
       const [casesRes, statsRes] = await Promise.all([
-        getDepartmentCases(selectedDepartment, demoMode),
-        getDepartmentStats(selectedDepartment, demoMode),
+        getDepartmentCases(selectedDepartment),
+        getDepartmentStats(selectedDepartment),
       ]);
       setCases(casesRes || []);
       setStats(statsRes || null);
@@ -59,7 +59,7 @@ export function DepartmentDashboard() {
 
   useEffect(() => {
     loadData();
-  }, [selectedDepartment, demoMode]);
+  }, [selectedDepartment]);
 
   // Drag-and-drop quick status transition handler
   const handleQuickStatusChange = async (caseId, nextStatus) => {
@@ -69,11 +69,11 @@ export function DepartmentDashboard() {
         message: `Quick drag-and-drop dispatch update: Status set to ${nextStatus.replace("_", " ")}`,
         updated_by: "Department Dispatcher",
       };
-      const updated = await updateCaseStatus(caseId, payload, demoMode);
+      const updated = await updateCaseStatus(caseId, payload);
       setCases((prev) => prev.map((c) => (c.id === caseId ? updated : c)));
       showToast(`Case status transitioned to ${nextStatus.toUpperCase()}`, "success");
       // refresh stats
-      getDepartmentStats(selectedDepartment, demoMode).then((res) => {
+      getDepartmentStats(selectedDepartment).then((res) => {
         if (res) setStats(res);
       });
     } catch (err) {
@@ -90,7 +90,7 @@ export function DepartmentDashboard() {
     setCases((prev) =>
       prev.map((c) => (c.id === updatedCase.id ? updatedCase : c))
     );
-    getDepartmentStats(selectedDepartment, demoMode).then((res) => {
+    getDepartmentStats(selectedDepartment).then((res) => {
       if (res) setStats(res);
     });
   };

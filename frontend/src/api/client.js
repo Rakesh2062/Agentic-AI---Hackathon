@@ -29,6 +29,7 @@ export async function apiClient(endpoint, options = {}) {
     // Flag network errors
     if (err.name === "TypeError" && err.message.includes("fetch")) {
       err.isNetworkError = true;
+      err.message = "The complaint tracking service is unavailable. Start the backend, then try again.";
     }
     throw err;
   }

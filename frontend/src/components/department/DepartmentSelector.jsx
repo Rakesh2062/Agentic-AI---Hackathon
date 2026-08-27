@@ -1,24 +1,22 @@
 import React, { useEffect, useState } from "react";
 import { getDepartments } from "../../api/endpoints";
-import { useApp } from "../../context/AppContext";
 import { Building2, ChevronDown, Check } from "lucide-react";
 
 export function DepartmentSelector({ onSelect, currentDepartment }) {
-  const { demoMode } = useApp();
   const [departments, setDepartments] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     async function loadDepts() {
       try {
-        const list = await getDepartments(demoMode);
+        const list = await getDepartments();
         setDepartments(list);
       } catch (e) {
         // Fallback
       }
     }
     loadDepts();
-  }, [demoMode]);
+  }, []);
 
   return (
     <div className="relative inline-block text-left">

@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 
 export function CaseDetailModal({ isOpen, onClose, caseItem, onCaseUpdated }) {
-  const { demoMode, showToast } = useApp();
+  const { showToast } = useApp();
   const { isOfficial, currentUser, awardCivicPoints } = useAuth();
 
   const [newStatus, setNewStatus] = useState(caseItem?.status || Status.ASSIGNED);
@@ -76,7 +76,6 @@ export function CaseDetailModal({ isOpen, onClose, caseItem, onCaseUpdated }) {
           isRecurringProblem,
           officerName: currentUser?.name || officerName,
         },
-        demoMode
       );
 
       // Award points in AuthContext with duplicate prevention
@@ -113,7 +112,6 @@ export function CaseDetailModal({ isOpen, onClose, caseItem, onCaseUpdated }) {
           message: `Official Rejected: ${reason}`,
           updated_by: currentUser?.name || "Civic Official",
         },
-        demoMode
       );
       setIsUpdating(false);
       showToast(`Report ${caseItem.complaint_id} rejected and archived.`, "info");
@@ -138,7 +136,6 @@ export function CaseDetailModal({ isOpen, onClose, caseItem, onCaseUpdated }) {
           message: `Additional Information Requested: ${note}`,
           updated_by: currentUser?.name || "Civic Official",
         },
-        demoMode
       );
       setIsUpdating(false);
       showToast(`Information requested from citizen.`, "info");
@@ -162,7 +159,7 @@ export function CaseDetailModal({ isOpen, onClose, caseItem, onCaseUpdated }) {
     };
 
     try {
-      const updated = await updateCaseStatus(caseItem.id, payload, demoMode);
+      const updated = await updateCaseStatus(caseItem.id, payload);
       setIsUpdating(false);
       showToast(`Case ${caseItem.complaint_id} updated to ${newStatus.replace("_", " ")}`, "success");
       onCaseUpdated(updated);
