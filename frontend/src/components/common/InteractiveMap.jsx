@@ -52,6 +52,8 @@ export function InteractiveMap({
   initialZoom = 13,
   existingCases = [],
   selectedCase = null,
+  selectedWard = "",
+  selectedCategory = "",
   height = "h-80 sm:h-96",
   onMarkerClick = null,
 }) {
@@ -423,10 +425,30 @@ export function InteractiveMap({
 
     if (!existingCases || existingCases.length === 0) return;
 
-    existingCases.forEach((c) => {
+    let casesToRender = existingCases;
+
+    if (selectedWard) {
+      casesToRender = casesToRender.filter(
+        (c) =>
+          c.location?.ward === selectedWard ||
+          (c.location?.address || "").includes(selectedWard.split(" ")[0])
+      );
+    } else if (selectedCategory) {
+      casesToRender = casesToRender.filter(
+        (c) => c.category === selectedCategory
+      );
+    }
+
+    const bounds = L.latLngBounds();
+    let hasValidCoords = false;
+
+    casesToRender.forEach((c) => {
       const lat = c.location?.lat;
       const lng = c.location?.lng;
       if (typeof lat !== "number" || typeof lng !== "number") return;
+
+      hasValidCoords = true;
+      bounds.extend([lat, lng]);
 
       const markerColor =
         c.status === Status.RESOLVED || c.status === Status.CLOSED
@@ -457,17 +479,26 @@ export function InteractiveMap({
 
       const popupHtml = `
         <div style="color: #0f172a; font-family: sans-serif; padding: 6px; max-width: 240px;">
-          <div style="font-weight: 800; font-size: 12px; color: #0284c7; margin-bottom: 2px;">
-            ${c.complaint_id || "Case"}
+          <div style="font-weight: 800; font-size: 12px; color: #0284c7; margin-bottom: 2px; display: flex; justify-content: space-between;">
+            <span>${c.complaint_id || "Case"}</span>
+            <span style="font-size: 10px; color: #64748b;">${c.created_at ? new Date(c.created_at).toLocaleDateString() : ""}</span>
           </div>
           <div style="font-weight: 700; font-size: 12px; margin-bottom: 4px; color: #0f172a;">
             ${c.title || c.summary || "Incident"}
           </div>
-          <div style="font-size: 11px; color: #475569; margin-bottom: 6px;">
-            ${c.location?.address || ""}
+          <div style="font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 2px;">
+            Category: ${(c.category || "General").replace(/_/g, ' ')}
           </div>
-          <div style="display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: ${markerColor}20; color: ${markerColor}; border: 1px solid ${markerColor};">
-            ${(c.priority || "MEDIUM").toUpperCase()} PRIORITY • ${(c.status || "OPEN").toUpperCase()}
+          <div style="font-size: 10px; color: #475569; margin-bottom: 6px; line-height: 1.3;">
+            📍 ${c.location?.address || "Unknown Location"}
+          </div>
+          <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+            <div style="font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: ${markerColor}20; color: ${markerColor}; border: 1px solid ${markerColor};">
+              ${(c.validatedSeverity || c.priority || "MEDIUM").toUpperCase()} PRIORITY
+            </div>
+            <div style="font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1;">
+              ${(c.status || "OPEN").replace(/_/g, ' ').toUpperCase()}
+            </div>
           </div>
         </div>
       `;
@@ -480,7 +511,11 @@ export function InteractiveMap({
 
       complaintMarkersRef.current.push(marker);
     });
-  }, [existingCases, mapLoaded, onMarkerClick]);
+
+    if (hasValidCoords && (selectedWard || selectedCategory) && mode === "heatmap") {
+      mapInstanceRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+    }
+  }, [existingCases, mapLoaded, onMarkerClick, selectedWard, selectedCategory, mode]);
 
   // Select a suggestion from the dropdown
   const handleSelectSuggestion = useCallback(
@@ -809,6 +844,21 @@ export function InteractiveMap({
           <span className="text-[11px] font-mono text-emerald-400 font-bold bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800 flex-shrink-0 flex items-center gap-1">
             <Check className="w-3 h-3" /> Selected
           </span>
+        </div>
+      )}
+
+      {/* Empty State Overlay */}
+      {mode !== "picker" && (!existingCases || existingCases.length === 0) && mapLoaded && (
+        <div className="absolute inset-0 z-[20] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm pointer-events-none">
+          <div className="bg-slate-900 border border-slate-700 rounded-xl p-5 shadow-2xl text-center max-w-sm mx-4">
+            <div className="w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-3">
+              <MapPin className="w-6 h-6 text-slate-500" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-200 mb-1">No Active Reports Found</h3>
+            <p className="text-xs text-slate-400">
+              There are currently no civic reports with valid location coordinates in the database to display on the map.
+            </p>
+          </div>
         </div>
       )}
 

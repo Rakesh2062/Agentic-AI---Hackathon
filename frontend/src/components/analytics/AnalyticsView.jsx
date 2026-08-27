@@ -25,6 +25,7 @@ export function AnalyticsView() {
   const [metrics, setMetrics] = useState(null);
   const [allCases, setAllCases] = useState([]);
   const [selectedWardForMap, setSelectedWardForMap] = useState("Ward 4 - Central West");
+  const [selectedCategoryForMap, setSelectedCategoryForMap] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -47,13 +48,80 @@ export function AnalyticsView() {
     loadAnalytics();
   }, [demoMode]);
 
-  const categoryBreakdown = [
-    { name: "Roads & Pavements", category: Category.ROADS, count: 48, percentage: 32, color: "bg-sky-500" },
-    { name: "Water & Sewage", category: Category.WATER, count: 36, percentage: 24, color: "bg-blue-500" },
-    { name: "Solid Waste Management", category: Category.WASTE, count: 28, percentage: 19, color: "bg-emerald-500" },
-    { name: "Street Lighting & Power", category: Category.STREETLIGHT, count: 22, percentage: 15, color: "bg-amber-500" },
-    { name: "Stormwater Drainage", category: Category.DRAINAGE, count: 16, percentage: 10, color: "bg-cyan-500" },
-  ];
+  // Dynamically compute Category Distribution from actual submitted cases
+  const categoryCounts = React.useMemo(() => {
+    const counts = {};
+    allCases.forEach((c) => {
+      const cat = c.category || Category.OTHER;
+      counts[cat] = (counts[cat] || 0) + 1;
+    });
+    return counts;
+  }, [allCases]);
+
+  const totalCaseCount = allCases.length || 1;
+
+  const categoryBreakdown = React.useMemo(() => {
+    const list = [
+      { name: "Roads & Pavements", category: Category.ROADS, color: "bg-sky-500" },
+      { name: "Water & Sewage", category: Category.WATER, color: "bg-blue-500" },
+      { name: "Solid Waste Management", category: Category.WASTE, color: "bg-emerald-500" },
+      { name: "Street Lighting & Power", category: Category.STREETLIGHT, color: "bg-amber-500" },
+      { name: "Stormwater Drainage", category: Category.DRAINAGE, color: "bg-cyan-500" },
+      { name: "Other / General", category: Category.OTHER, color: "bg-purple-500" },
+    ];
+
+    return list.map((item) => {
+      const count = categoryCounts[item.category] || 0;
+      const percentage = Math.round((count / totalCaseCount) * 100);
+      return { ...item, count, percentage };
+    });
+  }, [categoryCounts, totalCaseCount]);
+
+  // Dynamically compute Ward Hotspots from actual submitted cases
+  const dynamicHotspots = React.useMemo(() => {
+    const wardMap = {};
+    allCases.forEach((c) => {
+      const wardName = c.location?.ward || c.location?.address || "Downtown Metropolitan Ward";
+      if (!wardMap[wardName]) {
+        wardMap[wardName] = {
+          ward: wardName,
+          complaint_count: 0,
+          categories: {},
+          top_issue: c.summary || c.raw_text || "Civic report",
+          hasCritical: false,
+        };
+      }
+      wardMap[wardName].complaint_count += 1;
+      const cat = c.category || Category.OTHER;
+      wardMap[wardName].categories[cat] = (wardMap[wardName].categories[cat] || 0) + 1;
+      if (c.priority === "CRITICAL" || c.priority === "HIGH") {
+        wardMap[wardName].hasCritical = true;
+      }
+    });
+
+    const result = Object.values(wardMap).map((w) => {
+      // find primary category
+      let maxCat = Category.ROADS;
+      let maxCount = 0;
+      Object.entries(w.categories).forEach(([catKey, countVal]) => {
+        if (countVal > maxCount) {
+          maxCount = countVal;
+          maxCat = catKey;
+        }
+      });
+
+      return {
+        ward: w.ward,
+        complaint_count: w.complaint_count,
+        primary_category: maxCat,
+        risk_level: w.hasCritical ? "HIGH" : "MEDIUM",
+        avg_sla_hours: w.hasCritical ? 12.0 : 24.0,
+        top_issue: w.top_issue,
+      };
+    });
+
+    return result;
+  }, [allCases]);
 
   return (
     <div className="space-y-6">
@@ -160,6 +228,7 @@ export function AnalyticsView() {
           mode="heatmap"
           existingCases={allCases}
           selectedWard={selectedWardForMap}
+          selectedCategory={selectedCategoryForMap}
           height="h-80 sm:h-96"
         />
       </div>
@@ -186,13 +255,16 @@ export function AnalyticsView() {
           </p>
 
           <div className="space-y-3">
-            {hotspots.map((hotspot, idx) => {
+            {dynamicHotspots.map((hotspot, idx) => {
               const isSelected = selectedWardForMap === hotspot.ward;
 
               return (
                 <div
                   key={idx}
-                  onClick={() => setSelectedWardForMap(hotspot.ward)}
+                  onClick={() => {
+                    setSelectedWardForMap(hotspot.ward);
+                    setSelectedCategoryForMap("");
+                  }}
                   className={`bg-slate-950/70 border rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 cursor-pointer transition ${
                     isSelected
                       ? "border-sky-500 bg-sky-950/20 shadow-glow-primary"
@@ -244,24 +316,33 @@ export function AnalyticsView() {
             <span className="text-xs text-slate-400 font-mono">100% Total</span>
           </div>
 
-          <div className="space-y-4 pt-1">
-            {categoryBreakdown.map((item, idx) => (
-              <div key={idx} className="space-y-1.5">
+          <div className="space-y-3 pt-1">
+            {categoryBreakdown.map((item, idx) => {
+              const isSelected = selectedCategoryForMap === item.category;
+              return (
+              <div 
+                key={idx} 
+                onClick={() => {
+                  setSelectedCategoryForMap(isSelected ? "" : item.category);
+                  if (!isSelected) setSelectedWardForMap("");
+                }}
+                className={`space-y-1.5 p-3 rounded-xl cursor-pointer transition border ${isSelected ? "border-sky-500 bg-sky-950/20 shadow-glow-primary" : "border-slate-800 bg-slate-950/40 hover:border-slate-700"}`}
+              >
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-slate-200">{item.name}</span>
+                  <span className={`font-bold ${isSelected ? "text-sky-300" : "text-slate-200"}`}>{item.name}</span>
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-slate-400">{item.count}</span>
                     <span className="font-mono font-bold text-slate-100">{item.percentage}%</span>
                   </div>
                 </div>
-                <div className="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+                <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-800">
                   <div
                     className={`h-full rounded-full ${item.color}`}
                     style={{ width: `${item.percentage}%` }}
                   />
                 </div>
               </div>
-            ))}
+            )})}
           </div>
 
           {/* AI Pipeline Efficiency Note */}

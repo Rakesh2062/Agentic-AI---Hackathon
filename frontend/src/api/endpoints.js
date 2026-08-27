@@ -5,8 +5,8 @@ import { apiClient } from "./client";
 import { initialMockCases, initialMockUsers, mockDepartmentStats, mockHotspots } from "./mockData";
 import { Category, Status, Priority, UserRole, DepartmentsList, ResidentBenefitsCatalog, VisitorBenefitsCatalog } from "../utils/constants";
 
-// In-memory persistent mock storage
-let localCases = [...initialMockCases];
+// In-memory persistent storage for submitted cases
+let localCases = [];
 try {
   const saved = sessionStorage.getItem("civic_cases");
   if (saved) {

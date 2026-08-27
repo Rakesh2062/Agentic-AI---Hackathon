@@ -21,7 +21,7 @@ const PIPELINE_STEPS = [
     borderColor: "border-sky-500/60",
     bgColor: "bg-sky-950/40",
     dotColor: "bg-sky-400",
-    duration: 700,
+    duration: 1200,
   },
   {
     id: "classify",
@@ -283,7 +283,7 @@ export function AgentResultSummary({ caseData }) {
       <div className="px-4 py-2.5 border-b border-slate-800 flex items-center gap-2">
         <Bot className="w-3.5 h-3.5 text-sky-400" />
         <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">
-          What each AI agent did
+          Agents Workflow
         </span>
       </div>
 
