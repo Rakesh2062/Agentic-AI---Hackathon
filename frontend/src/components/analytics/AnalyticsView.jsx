@@ -266,7 +266,7 @@ export function AnalyticsView() {
 
           {/* AI Pipeline Efficiency Note */}
           <div className="mt-6 bg-slate-950/70 border border-sky-900/40 rounded-xl p-3.5 text-xs text-slate-400 space-y-1">
-            <span className="font-bold text-sky-400 block flex items-center gap-1.5">
+            <span className="font-bold text-sky-400 flex items-center gap-1.5">
               <Zap className="w-3.5 h-3.5" /> Agentic Routing Velocity
             </span>
             <p>
