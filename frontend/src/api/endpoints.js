@@ -117,7 +117,7 @@ export async function getDepartments() {
   } catch (err) {
     return DepartmentsList;
   }
-}
+
 
 /**
  * Official: Get ALL cases (for official dashboard)

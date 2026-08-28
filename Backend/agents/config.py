@@ -33,12 +33,12 @@ logger = logging.getLogger("agents")
 # Department & Category Constants
 # ---------------------------------------------------------------------------
 class Department(str, Enum):
-    WATER = "Water"
-    SANITATION = "Sanitation"
-    ROADS = "Roads"
-    DRAINAGE = "Drainage"
-    STREETLIGHTS = "Streetlights"
-    PUBLIC_FACILITIES = "Public Facilities"
+    WATER = "Water & Sewage Board"
+    SANITATION = "Solid Waste Management"
+    ROADS = "Roads & Infrastructure"
+    DRAINAGE = "Stormwater & Drainage"
+    STREETLIGHTS = "Street Lighting & Electrical"
+    PUBLIC_FACILITIES = "Parks & Urban Forestry"
 
 
 class ComplaintCategory(str, Enum):
@@ -93,6 +93,7 @@ CATEGORY_DEPARTMENT_MAP: dict[str, str] = {
     ComplaintCategory.PUBLIC_FACILITIES: Department.PUBLIC_FACILITIES,
     ComplaintCategory.OTHER: Department.PUBLIC_FACILITIES,  # fallback
 }
+
 
 
 # ---------------------------------------------------------------------------

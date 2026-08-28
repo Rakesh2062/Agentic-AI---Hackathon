@@ -22,32 +22,31 @@ const LIFECYCLE_STEPS = [
 ];
 
 export function StatusTimeline({ history = [], currentStatus = "submitted" }) {
-  // Determine step index in lifecycle
   const currentStepIndex = LIFECYCLE_STEPS.findIndex((s) => s.key === currentStatus);
   const isEscalated = currentStatus === "escalated";
 
   return (
     <div className="space-y-6">
       {/* Visual Stepper */}
-      <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 sm:p-5">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">
-          Lifecycle Progression
+      <div className="bg-zinc-900/40 p-4 sm:p-5 border border-white/[0.08]">
+        <h4 className="meta-label mb-4">
+          [ 01 ] RESOLUTION PROGRESSION
         </h4>
 
         {isEscalated ? (
-          <div className="p-3 bg-rose-950/80 border border-rose-800 rounded-lg flex items-center gap-3 text-rose-300">
-            <AlertCircle className="w-5 h-5 text-rose-400 flex-shrink-0 animate-pulse" />
+          <div className="p-3 bg-rose-950 border border-rose-800 flex items-center gap-3 text-rose-300">
+            <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0 animate-pulse" />
             <div>
-              <p className="text-xs font-bold">Escalated Status Active</p>
-              <p className="text-[11px] text-rose-300/80">
-                This case has triggered an SLA exception and is being expedited by senior supervisors.
+              <p className="text-xs font-mono font-bold uppercase">SLA Escalation Triggered</p>
+              <p className="text-[10px] text-rose-300/80 font-mono mt-0.5">
+                This incident has breached target turnaround and is being expedited by senior supervisors.
               </p>
             </div>
           </div>
         ) : (
           <div className="relative flex items-center justify-between">
-            {/* Background Line */}
-            <div className="absolute top-1/2 left-4 right-4 -translate-y-1/2 h-0.5 bg-slate-800 -z-0"></div>
+            {/* Hairline Background Rule */}
+            <div className="absolute top-1/2 left-4 right-4 -translate-y-1/2 h-px bg-white/10 -z-0"></div>
 
             {LIFECYCLE_STEPS.map((step, idx) => {
               const isPast = idx <= currentStepIndex;
@@ -56,27 +55,27 @@ export function StatusTimeline({ history = [], currentStatus = "submitted" }) {
               return (
                 <div key={step.key} className="relative z-10 flex flex-col items-center group">
                   <div
-                    className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all shadow-md ${
+                    className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-[10px] font-mono transition-all ${
                       isCurrent
-                        ? "bg-sky-500 text-white ring-4 ring-sky-500/20 scale-110 shadow-glow-primary"
+                        ? "bg-white text-zinc-950 ring-4 ring-white/10 scale-110 font-bold"
                         : isPast
-                        ? "bg-emerald-500 text-slate-950 font-extrabold"
-                        : "bg-slate-800 text-slate-500 border border-slate-700"
+                        ? "bg-zinc-200 text-zinc-950 font-bold"
+                        : "bg-zinc-900 text-zinc-500 border border-white/10"
                     }`}
                   >
                     {isPast && !isCurrent ? (
-                      <CheckCircle className="w-4 h-4" />
+                      <CheckCircle className="w-3.5 h-3.5" />
                     ) : (
                       <span>{idx + 1}</span>
                     )}
                   </div>
                   <span
-                    className={`text-[10px] sm:text-xs mt-2 font-medium hidden sm:block ${
+                    className={`text-[9px] font-mono uppercase tracking-wider mt-2 hidden sm:block ${
                       isCurrent
-                        ? "text-sky-300 font-bold"
+                        ? "text-white font-bold"
                         : isPast
-                        ? "text-slate-200"
-                        : "text-slate-500"
+                        ? "text-zinc-300"
+                        : "text-zinc-600"
                     }`}
                   >
                     {step.label}
@@ -90,11 +89,11 @@ export function StatusTimeline({ history = [], currentStatus = "submitted" }) {
 
       {/* Detailed Chronological History Log */}
       <div>
-        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
-          <Clock className="w-3.5 h-3.5 text-sky-400" /> Audit Log & Agent Updates ({history.length})
+        <h4 className="meta-label mb-3 flex items-center gap-1.5">
+          <Clock className="w-3 h-3 text-zinc-400" /> [ 02 ] AUDIT TRAIL &amp; AGENT UPDATES ({history.length})
         </h4>
 
-        <div className="space-y-3 relative before:absolute before:inset-0 before:left-3.5 before:w-0.5 before:bg-slate-800/80">
+        <div className="space-y-3 relative before:absolute before:inset-0 before:left-3 before:w-px before:bg-white/10">
           {history.map((item, index) => {
             const isAgent = (item.updated_by || "").toLowerCase().includes("agent") || (item.updated_by || "").toLowerCase().includes("ai");
 
@@ -102,30 +101,30 @@ export function StatusTimeline({ history = [], currentStatus = "submitted" }) {
               <div key={index} className="relative flex items-start gap-4 pl-1">
                 {/* Node Icon */}
                 <div
-                  className={`w-6 h-6 rounded-full flex items-center justify-center z-10 text-xs flex-shrink-0 mt-1 shadow ${
+                  className={`w-5 h-5 rounded-full flex items-center justify-center z-10 text-xs flex-shrink-0 mt-1 border ${
                     isAgent
-                      ? "bg-sky-950 border border-sky-600 text-sky-300"
-                      : "bg-slate-800 border border-slate-600 text-slate-200"
+                      ? "bg-zinc-950 border-white/30 text-white"
+                      : "bg-zinc-900 border-white/10 text-zinc-400"
                   }`}
                 >
-                  {isAgent ? <Sparkles className="w-3 h-3 text-sky-400" /> : <User className="w-3 h-3 text-slate-300" />}
+                  {isAgent ? <Sparkles className="w-2.5 h-2.5 text-white" /> : <User className="w-2.5 h-2.5 text-zinc-400" />}
                 </div>
 
                 {/* Card */}
-                <div className="flex-1 bg-slate-950/70 border border-slate-800 rounded-xl p-3.5 text-xs shadow-sm hover:border-slate-700/80 transition">
-                  <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                <div className="flex-1 bg-zinc-950 border border-white/[0.08] p-3 text-xs font-mono">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
                     <div className="flex items-center gap-2">
                       <StatusBadge status={item.status} size="sm" />
-                      <span className="font-semibold text-slate-200">
+                      <span className="font-semibold text-zinc-200 text-[11px]">
                         {item.updated_by || "System"}
                       </span>
                     </div>
-                    <span className="text-[11px] text-slate-400 font-mono" title={formatDate(item.timestamp)}>
+                    <span className="text-[10px] text-zinc-500 font-mono" title={formatDate(item.timestamp)}>
                       {formatTimeAgo(item.timestamp)}
                     </span>
                   </div>
 
-                  <p className="text-slate-300 leading-relaxed text-xs sm:text-[13px]">
+                  <p className="text-zinc-300 text-xs leading-relaxed mt-1">
                     {item.message}
                   </p>
                 </div>

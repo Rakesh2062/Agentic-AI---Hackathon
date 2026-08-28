@@ -1,70 +1,162 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { getDepartments } from "../../api/endpoints";
+import { DepartmentsList } from "../../utils/constants";
 import { Building2, ChevronDown, Check } from "lucide-react";
 
+const DEPT_ICONS = {
+  "Roads & Infrastructure":   "🛣️",
+  "Water & Sewage Board":      "💧",
+  "Solid Waste Management":    "♻️",
+  "Street Lighting & Electrical": "💡",
+  "Stormwater & Drainage":     "🌧️",
+  "Traffic Management & Signals": "🚦",
+  "Parks & Urban Forestry":    "🌳",
+};
+
 export function DepartmentSelector({ onSelect, currentDepartment }) {
-  const [departments, setDepartments] = useState([]);
+  const [departments, setDepartments] = useState(DepartmentsList);
   const [isOpen, setIsOpen] = useState(false);
+  const buttonRef = useRef(null);
+  const [dropdownStyle, setDropdownStyle] = useState({});
 
   useEffect(() => {
     async function loadDepts() {
       try {
-        const list = await getDepartments();
-        setDepartments(list);
+        const res = await getDepartments();
+        const list = Array.isArray(res) ? res : (res?.departments ?? []);
+        if (list.length > 0) {
+          setDepartments(list);
+        } else {
+          setDepartments(DepartmentsList);
+        }
       } catch (e) {
-        // Fallback
+        setDepartments(DepartmentsList);
       }
     }
     loadDepts();
   }, []);
 
+  // Calculate dropdown position relative to the button on open
+  const handleOpen = useCallback(() => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropdownStyle({
+        top: rect.bottom + window.scrollY + 6,
+        left: rect.left + window.scrollX,
+        minWidth: Math.max(rect.width, 280),
+      });
+    }
+    setIsOpen((prev) => !prev);
+  }, []);
+
+  // Reposition on scroll/resize while open
+  useEffect(() => {
+    if (!isOpen) return;
+    const reposition = () => {
+      if (buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect();
+        setDropdownStyle({
+          top: rect.bottom + window.scrollY + 6,
+          left: rect.left + window.scrollX,
+          minWidth: Math.max(rect.width, 280),
+        });
+      }
+    };
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    return () => {
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+    };
+  }, [isOpen]);
+
+  const dropdown = isOpen
+    ? createPortal(
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-[9998]"
+            onClick={() => setIsOpen(false)}
+          />
+          {/* Dropdown panel — rendered at body level, never clipped */}
+          <div
+            style={{
+              position: "absolute",
+              top: dropdownStyle.top,
+              left: dropdownStyle.left,
+              minWidth: dropdownStyle.minWidth,
+              zIndex: 9999,
+            }}
+            className="bg-white border border-slate-200 rounded-2xl shadow-2xl py-2 overflow-hidden"
+          >
+            {/* Header */}
+            <div className="px-4 py-2 border-b border-slate-100 mb-1">
+              <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-400">
+                Municipal Bureau Divisions
+              </p>
+            </div>
+
+            {/* Department items */}
+            <div className="max-h-72 overflow-y-auto">
+              {departments.map((dept) => {
+                const name = dept.name || dept.id || dept;
+                const isSelected =
+                  name === currentDepartment || dept.id === currentDepartment;
+                const icon = DEPT_ICONS[name] || "🏛️";
+                return (
+                  <button
+                    key={dept.id || name}
+                    onClick={() => {
+                      onSelect(name);
+                      setIsOpen(false);
+                    }}
+                    className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-all duration-150 group ${
+                      isSelected
+                        ? "bg-indigo-50 text-indigo-700"
+                        : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                    }`}
+                  >
+                    <span className="text-base flex-shrink-0">{icon}</span>
+                    <span className="flex-1 text-xs font-semibold truncate">
+                      {name}
+                    </span>
+                    {isSelected && (
+                      <Check className="w-3.5 h-3.5 text-indigo-600 flex-shrink-0" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </>,
+        document.body
+      )
+    : null;
+
   return (
-    <div className="relative inline-block text-left">
+    <>
       <div className="flex items-center gap-2">
-        <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider hidden sm:inline-block">
+        <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-400 hidden sm:inline-block">
           Active Department:
         </span>
         <button
+          ref={buttonRef}
           type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700/80 hover:border-sky-500 text-slate-100 font-bold text-sm shadow-md transition"
+          onClick={handleOpen}
+          className="flex items-center gap-2.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-mono text-xs uppercase tracking-wider transition duration-200 shadow-md cursor-pointer"
         >
-          <Building2 className="w-4 h-4 text-sky-400" />
-          <span>{currentDepartment}</span>
-          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+          <Building2 className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />
+          <span className="truncate max-w-[180px]">{currentDepartment}</span>
+          <ChevronDown
+            className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 flex-shrink-0 ${
+              isOpen ? "rotate-180" : ""
+            }`}
+          />
         </button>
       </div>
 
-      {isOpen && (
-        <>
-          <div className="fixed inset-0 z-20" onClick={() => setIsOpen(false)} />
-          <div className="absolute left-0 mt-2 w-64 rounded-xl bg-slate-900 border border-slate-700 shadow-2xl z-30 py-1.5 animate-slide-up">
-            <div className="px-3 py-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800">
-              City Municipal Departments
-            </div>
-            {departments.map((dept) => {
-              const isSelected = dept.name === currentDepartment || dept.id === currentDepartment;
-              return (
-                <button
-                  key={dept.id || dept.name}
-                  onClick={() => {
-                    onSelect(dept.name || dept.id);
-                    setIsOpen(false);
-                  }}
-                  className={`w-full text-left px-3.5 py-2.5 text-xs sm:text-sm font-medium flex items-center justify-between transition ${
-                    isSelected
-                      ? "bg-sky-600/20 text-sky-300 font-bold"
-                      : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                  }`}
-                >
-                  <span className="truncate">{dept.name}</span>
-                  {isSelected && <Check className="w-4 h-4 text-sky-400" />}
-                </button>
-              );
-            })}
-          </div>
-        </>
-      )}
-    </div>
+      {dropdown}
+    </>
   );
 }
