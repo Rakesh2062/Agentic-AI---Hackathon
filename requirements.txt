@@ -4,11 +4,12 @@ uvicorn
 python-dotenv
 
 google-genai
-langgraph
-langchain
-langchain-google-genai
+openai
+groq
 
 pydantic
 pydantic-settings
 motor
 pymongo
+certifi
+python-multipart
