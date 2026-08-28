@@ -21,7 +21,7 @@ import {
   Building2,
   Lock
 } from "lucide-react";
-import { createComplaint, getDepartmentCases } from "../../api/endpoints";
+import { createComplaint, getDepartmentCases, uploadFile } from "../../api/endpoints";
 import { useApp } from "../../context/AppContext";
 import { useAuth } from "../../context/AuthContext";
 import { ComplaintSuccess } from "./ComplaintSuccess";
@@ -202,7 +202,7 @@ export function ComplaintForm() {
     addFilesToAttachments(files);
   };
 
-  const addFilesToAttachments = (files) => {
+  const addFilesToAttachments = async (files) => {
     const validFiles = files.filter((f) => {
       const isImg = f.type.startsWith("image/");
       const isPdf = f.type === "application/pdf";
@@ -213,16 +213,29 @@ export function ComplaintForm() {
     if (validFiles.length < files.length) {
       showToast("Some unsupported file formats were skipped (Supports JPG, PNG, WEBP, PDF).", "warning");
     }
+    if (!validFiles.length) return;
 
-    const newItems = validFiles.map((f) => ({
-      name: f.name,
-      size: `${(f.size / (1024 * 1024)).toFixed(1)} MB`,
-      url: URL.createObjectURL(f),
-      type: f.type.startsWith("image/") ? "image" : f.type === "application/pdf" ? "document" : "video",
-    }));
+    showToast(`Uploading ${validFiles.length} file(s)...`, "info");
 
-    setAttachments([...attachments, ...newItems]);
-    showToast(`Attached ${validFiles.length} file(s)`, "success");
+    const newItems = [];
+    for (const f of validFiles) {
+      try {
+        const result = await uploadFile(f);
+        const backendBase = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1").replace("/api/v1", "");
+        newItems.push({
+          name: f.name,
+          size: `${(f.size / (1024 * 1024)).toFixed(1)} MB`,
+          url: `${backendBase}${result.url}`,
+          type: f.type.startsWith("image/") ? "image" : f.type === "application/pdf" ? "document" : "video",
+        });
+      } catch (err) {
+        showToast(`Failed to upload ${f.name}: ${err.message}`, "error");
+      }
+    }
+    if (!newItems.length) return;
+
+    setAttachments((prev) => [...prev, ...newItems]);
+    showToast(`${newItems.length} file(s) uploaded!`, "success");
   };
 
   const removeAttachment = (idx) => {
@@ -253,7 +266,7 @@ export function ComplaintForm() {
         ward: ward,
         zone: "Municipal Zone",
       },
-      attachments: attachments.map((a) => ({ name: a.name, size: a.size, url: a.url, type: a.type })),
+      attachments: attachments.map((a) => a.url),
     };
 
     try {

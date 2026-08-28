@@ -17,7 +17,10 @@ import {
   MapPin, 
   RefreshCw,
   Plus,
-  Loader2
+  Loader2,
+  Camera,
+  Image,
+  ExternalLink
 } from "lucide-react";
 
 export function MyComplaintsView({ onNewReportClick }) {
@@ -198,29 +201,80 @@ export function MyComplaintsView({ onNewReportClick }) {
                   </div>
                 </div>
 
-                {/* Expanded Timeline Drawer */}
-                {selectedCase?.id === item.id && (
-                  <div className="mt-5 pt-5 border-t border-slate-800/80 animate-slide-up space-y-4">
-                    <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs space-y-1">
-                      <span className="font-bold text-slate-300 block">Full Incident Details:</span>
-                      <p className="text-slate-400">{item.raw_text}</p>
-                    </div>
-
-                    {item.pointsBreakdown && (
-                      <div className="p-3 bg-emerald-950/40 rounded-xl border border-emerald-800/60 text-xs">
-                        <span className="font-bold text-emerald-300 block flex items-center gap-1.5">
-                          <Award className="w-3.5 h-3.5" /> Validation Points Breakdown:
-                        </span>
-                        <p className="text-slate-300 mt-0.5 font-mono">{item.pointsBreakdown.reason}</p>
+                  {/* Expanded Drawer */}
+                  {selectedCase?.id === item.id && (
+                    <div className="mt-5 pt-5 border-t border-slate-800/80 animate-slide-up space-y-4">
+                      <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs space-y-1">
+                        <span className="font-bold text-slate-300 block">Full Incident Details:</span>
+                        <p className="text-slate-400">{item.raw_text}</p>
                       </div>
-                    )}
 
-                    <StatusTimeline
-                      history={item.status_history || []}
-                      currentStatus={item.status}
-                    />
-                  </div>
-                )}
+                      {/* Attachments */}
+                      {item.attachments?.length > 0 && (
+                        <div className="space-y-2">
+                          <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                            <Camera className="w-3.5 h-3.5 text-sky-400" />
+                            Evidence Attached ({item.attachments.length})
+                          </span>
+                          <div className="flex flex-wrap gap-3">
+                            {item.attachments.map((url, idx) => {
+                              const isPdf = typeof url === "string" && url.endsWith(".pdf") || (typeof url === "string" && url.includes("/files/") && !url.match(/\.(jpe?g|png|webp|gif)$/i));
+                              return isPdf ? (
+                                <a
+                                  key={idx}
+                                  href={url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-sky-300 hover:border-sky-600 transition"
+                                >
+                                  <FileText className="w-4 h-4 text-sky-400 flex-shrink-0" />
+                                  <span className="max-w-[140px] truncate">Document {idx + 1}</span>
+                                  <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                                </a>
+                              ) : (
+                                <a
+                                  key={idx}
+                                  href={url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="relative group block w-28 h-28 rounded-xl overflow-hidden border border-slate-700 hover:border-sky-500 transition flex-shrink-0"
+                                >
+                                  <img
+                                    src={url}
+                                    alt={`Evidence ${idx + 1}`}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = "none";
+                                      e.currentTarget.parentElement.classList.add("bg-slate-900", "flex", "items-center", "justify-center");
+                                    }}
+                                  />
+                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                    <ExternalLink className="w-5 h-5 text-white" />
+                                  </div>
+                                </a>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {item.pointsBreakdown && (
+                        <div className="p-3 bg-emerald-950/40 rounded-xl border border-emerald-800/60 text-xs">
+                          <span className="font-bold text-emerald-300 block flex items-center gap-1.5">
+                            <Award className="w-3.5 h-3.5" /> Validation Points Breakdown:
+                          </span>
+                          <p className="text-slate-300 mt-0.5 font-mono">{item.pointsBreakdown.reason}</p>
+                        </div>
+                      )}
+
+                      <StatusTimeline
+                        history={item.status_history || []}
+                        currentStatus={item.status}
+                      />
+                    </div>
+                  )}
               </div>
             );
           })}

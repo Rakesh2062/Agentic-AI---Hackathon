@@ -32,7 +32,7 @@ _DEPARTMENTS: list[dict[str, Any]] = [
     },
     {
         "id": "DEPT-02",
-        "name": Department.SANITATION,
+        "name": Department.WASTE,
         "description": "Handles waste collection, garbage, and sanitation.",
         "contact_email": "sanitation@municipality.gov",
     },
@@ -56,8 +56,8 @@ _DEPARTMENTS: list[dict[str, Any]] = [
     },
     {
         "id": "DEPT-06",
-        "name": Department.PUBLIC_FACILITIES,
-        "description": "Handles parks, benches, public restrooms, and other facilities.",
+        "name": Department.PARKS,
+        "description": "Handles parks, urban forestry, and public facilities.",
         "contact_email": "facilities@municipality.gov",
     },
 ]

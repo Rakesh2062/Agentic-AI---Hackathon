@@ -26,6 +26,9 @@ from api.routes_dashboard import router as dashboard_router, user_router
 from api.routes_analytics import router as analytics_router
 from api.routes_status import router as status_router
 from api.routes_auth import router as auth_router
+from api.routes_agent_chat import router as chat_router
+from api.routes_files import router as files_router
+from api.routes_chat_sessions import router as chat_sessions_router
 from database.connection import ping_async_db, close_async_client
 
 logger = logging.getLogger("civicpulse")
@@ -89,6 +92,9 @@ app.include_router(analytics_router, prefix=PREFIX)
 app.include_router(status_router, prefix=PREFIX)
 app.include_router(auth_router, prefix=PREFIX)
 app.include_router(user_router, prefix=PREFIX)
+app.include_router(chat_router, prefix=PREFIX)
+app.include_router(files_router, prefix=PREFIX)
+app.include_router(chat_sessions_router, prefix=PREFIX)
 
 
 @app.get("/", tags=["Health"])

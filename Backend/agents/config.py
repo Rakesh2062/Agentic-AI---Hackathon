@@ -33,12 +33,14 @@ logger = logging.getLogger("agents")
 # Department & Category Constants
 # ---------------------------------------------------------------------------
 class Department(str, Enum):
-    WATER = "Water"
-    SANITATION = "Sanitation"
-    ROADS = "Roads"
-    DRAINAGE = "Drainage"
-    STREETLIGHTS = "Streetlights"
-    PUBLIC_FACILITIES = "Public Facilities"
+    # Names MUST match frontend DepartmentsList exactly (constants.js)
+    ROADS             = "Roads & Infrastructure"
+    WATER             = "Water & Sewage Board"
+    WASTE             = "Solid Waste Management"
+    STREETLIGHTS      = "Street Lighting & Electrical"
+    DRAINAGE          = "Stormwater & Drainage"
+    TRAFFIC           = "Traffic Management & Signals"
+    PARKS             = "Parks & Urban Forestry"
 
 
 class ComplaintCategory(str, Enum):
@@ -85,13 +87,13 @@ SLA_HOURS: dict[str, int] = {
 # Category → Department Default Mapping
 # ---------------------------------------------------------------------------
 CATEGORY_DEPARTMENT_MAP: dict[str, str] = {
-    ComplaintCategory.ROADS: Department.ROADS,
-    ComplaintCategory.DRAINAGE: Department.DRAINAGE,
-    ComplaintCategory.WASTE: Department.SANITATION,
-    ComplaintCategory.WATER: Department.WATER,
-    ComplaintCategory.STREETLIGHTS: Department.STREETLIGHTS,
-    ComplaintCategory.PUBLIC_FACILITIES: Department.PUBLIC_FACILITIES,
-    ComplaintCategory.OTHER: Department.PUBLIC_FACILITIES,  # fallback
+    ComplaintCategory.ROADS:             Department.ROADS,
+    ComplaintCategory.DRAINAGE:          Department.DRAINAGE,
+    ComplaintCategory.WASTE:             Department.WASTE,
+    ComplaintCategory.WATER:             Department.WATER,
+    ComplaintCategory.STREETLIGHTS:      Department.STREETLIGHTS,
+    ComplaintCategory.PUBLIC_FACILITIES: Department.PARKS,
+    ComplaintCategory.OTHER:             Department.ROADS,  # fallback
 }
 
 
