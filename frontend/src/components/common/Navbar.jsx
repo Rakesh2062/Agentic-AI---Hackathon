@@ -13,7 +13,8 @@ import {
   Sparkles, 
   Menu, 
   X, 
-  FileText 
+  FileText,
+  Bot
 } from "lucide-react";
 import { NagarSetuLogo } from "./NagarSetuLogo";
 
@@ -69,20 +70,33 @@ export function Navbar({ onOpenLanding }) {
             <nav className="hidden md:flex items-center gap-1 bg-slate-900/90 p-1.5 rounded-xl border border-slate-800 shadow-inner">
               {/* Civilian & Tourist Navigation: [Citizen Portal] [City Analytics] [Profile] */}
               {!isOfficial && (
-                <button
-                  onClick={() => {
-                    setActiveTab("citizen");
-                    setCitizenSubTab("report");
-                  }}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
-                    activeTab === "citizen"
-                      ? "bg-sky-600 text-white shadow-md shadow-sky-600/25"
-                      : "text-slate-300 hover:text-white hover:bg-slate-800/60"
-                  }`}
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>{isTourist ? "Citizen / Visitor Portal" : "Citizen Portal"}</span>
-                </button>
+                <>
+                  <button
+                    onClick={() => setActiveTab("agent")}
+                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+                      activeTab === "agent"
+                        ? "bg-sky-600 text-white shadow-md shadow-sky-600/25"
+                        : "text-slate-300 hover:text-white hover:bg-slate-800/60"
+                    }`}
+                  >
+                    <Bot className="w-3.5 h-3.5 text-sky-400" />
+                    <span>AI Agent</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveTab("citizen");
+                      setCitizenSubTab("report");
+                    }}
+                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+                      activeTab === "citizen"
+                        ? "bg-sky-600 text-white shadow-md shadow-sky-600/25"
+                        : "text-slate-300 hover:text-white hover:bg-slate-800/60"
+                    }`}
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>{isTourist ? "Citizen / Visitor Portal" : "Citizen Portal"}</span>
+                  </button>
+                </>
               )}
 
               {/* Civic Official Navigation: [Department Ops] [City Analytics] [Profile] */}
@@ -248,19 +262,33 @@ export function Navbar({ onOpenLanding }) {
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-slate-800 bg-slate-950/95 px-4 pt-3 pb-5 space-y-2 animate-slide-up">
           {!isOfficial && (
-            <button
-              onClick={() => {
-                setActiveTab("citizen");
-                setCitizenSubTab("report");
-                setMobileMenuOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold ${
-                activeTab === "citizen" ? "bg-sky-600 text-white" : "text-slate-300 hover:bg-slate-900"
-              }`}
-            >
-              <Send className="w-4 h-4" />
-              {isTourist ? "Citizen / Visitor Portal" : "Citizen Portal"}
-            </button>
+            <>
+              <button
+                onClick={() => {
+                  setActiveTab("agent");
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold ${
+                  activeTab === "agent" ? "bg-sky-600 text-white" : "text-slate-300 hover:bg-slate-900"
+                }`}
+              >
+                <Bot className="w-4 h-4 text-sky-400" />
+                AI Agent
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab("citizen");
+                  setCitizenSubTab("report");
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold ${
+                  activeTab === "citizen" ? "bg-sky-600 text-white" : "text-slate-300 hover:bg-slate-900"
+                }`}
+              >
+                <Send className="w-4 h-4" />
+                {isTourist ? "Citizen / Visitor Portal" : "Citizen Portal"}
+              </button>
+            </>
           )}
 
           {isOfficial && (
