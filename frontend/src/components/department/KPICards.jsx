@@ -15,95 +15,100 @@ export function KPICards({ stats, loading }) {
       title: "Total Cases",
       value: stats?.total_cases ?? 0,
       icon: Layers,
-      color: "sky",
-      borderColor: "border-sky-500/20",
-      bgGradient: "from-sky-950/40 to-slate-900/60",
-      iconColor: "text-sky-400",
+      iconColor: "text-indigo-600",
+      iconBg: "bg-indigo-50 border-indigo-100",
       badge: "Assigned Queue",
+      trend: "+12.6%",
+      trendColor: "text-indigo-600 bg-indigo-50"
     },
     {
-      title: "Open / Intake",
+      title: "Open Intake",
       value: stats?.open_cases ?? 0,
       icon: Inbox,
-      color: "slate",
-      borderColor: "border-slate-700/60",
-      bgGradient: "from-slate-900 to-slate-950",
-      iconColor: "text-slate-300",
+      iconColor: "text-slate-600",
+      iconBg: "bg-slate-100 border-slate-200",
       badge: "Pending Action",
+      trend: "+4.2%",
+      trendColor: "text-slate-600 bg-slate-100"
     },
     {
       title: "In Progress",
       value: stats?.in_progress ?? 0,
       icon: Clock,
-      color: "amber",
-      borderColor: "border-amber-500/30",
-      bgGradient: "from-amber-950/40 to-slate-900/60",
-      iconColor: "text-amber-400",
-      badge: "Active Field Crews",
+      iconColor: "text-amber-600",
+      iconBg: "bg-amber-50 border-amber-100",
+      badge: "Field Crews",
+      trend: "+8.4%",
+      trendColor: "text-amber-600 bg-amber-50"
     },
     {
       title: "Resolved",
       value: stats?.resolved ?? 0,
       icon: CheckCircle2,
-      color: "emerald",
-      borderColor: "border-emerald-500/30",
-      bgGradient: "from-emerald-950/40 to-slate-900/60",
-      iconColor: "text-emerald-400",
+      iconColor: "text-emerald-600",
+      iconBg: "bg-emerald-50 border-emerald-100",
       badge: "Completed",
+      trend: "+18.2%",
+      trendColor: "text-emerald-600 bg-emerald-50"
     },
     {
-      title: "SLA Escalations",
+      title: "SLA Escalated",
       value: stats?.escalated ?? 0,
       icon: AlertTriangle,
-      color: "rose",
-      borderColor: "border-rose-500/40",
-      bgGradient: "from-rose-950/50 to-slate-900/60",
-      iconColor: "text-rose-400",
+      iconColor: "text-rose-600",
+      iconBg: "bg-rose-50 border-rose-100",
       isEscalated: true,
       badge: "Urgent Attention",
+      trend: "Needs Review",
+      trendColor: "text-rose-600 bg-rose-50"
     },
     {
       title: "Avg Turnaround",
       value: stats?.avg_resolution_hours ? `${stats.avg_resolution_hours}h` : "12.4h",
       icon: Timer,
-      color: "purple",
-      borderColor: "border-purple-500/30",
-      bgGradient: "from-purple-950/40 to-slate-900/60",
-      iconColor: "text-purple-400",
-      badge: "SLA Speed",
+      iconColor: "text-violet-600",
+      iconBg: "bg-violet-50 border-violet-100",
+      badge: "SLA Velocity",
+      trend: "-1.8h",
+      trendColor: "text-violet-600 bg-violet-50"
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
       {cards.map((card, idx) => {
         const IconComponent = card.icon;
         const isPulse = card.isEscalated && (card.value > 0);
 
         return (
-          <div
+          <article
             key={idx}
-            className={`relative rounded-2xl p-4 sm:p-5 border bg-gradient-to-b ${card.bgGradient} ${card.borderColor} shadow-md overflow-hidden transition hover:translate-y-[-2px] ${
-              isPulse ? "glow-border-critical ring-1 ring-rose-500/30" : ""
+            className={`glass-panel p-4 sm:p-5 rounded-2xl border border-white/90 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-[1.02] flex flex-col justify-between ${
+              isPulse ? "border-rose-300 bg-rose-50/40" : ""
             }`}
           >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">
                 {card.title}
               </span>
-              <IconComponent className={`w-4 h-4 ${card.iconColor}`} />
+              <div className={`w-8 h-8 rounded-xl border flex items-center justify-center ${card.iconBg} ${card.iconColor}`}>
+                <IconComponent className="w-4 h-4" />
+              </div>
             </div>
 
-            <div className="flex items-baseline gap-2">
-              <span className={`text-2xl sm:text-3xl font-extrabold text-white font-mono ${loading ? "opacity-40 animate-pulse" : ""}`}>
+            <div className="flex items-baseline gap-2 mb-2">
+              <span className={`text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono tracking-tight ${loading ? "opacity-40 animate-pulse" : ""}`}>
                 {card.value}
               </span>
             </div>
 
-            <span className="text-[10px] text-slate-400 mt-1 block truncate">
-              {card.badge}
-            </span>
-          </div>
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 text-[10px]">
+              <span className="text-slate-400 font-medium truncate">{card.badge}</span>
+              <span className={`px-2 py-0.5 rounded-md font-bold font-mono ${card.trendColor}`}>
+                {card.trend}
+              </span>
+            </div>
+          </article>
         );
       })}
     </div>

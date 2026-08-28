@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { UserRole } from "../../utils/constants";
 import { GoogleLoginButton } from "./GoogleLoginButton";
@@ -11,12 +11,26 @@ import {
   ShieldCheck, 
   CheckCircle2, 
   LogIn, 
-  UserPlus 
+  UserPlus,
+  ArrowLeft,
+  Zap,
+  Lock,
+  Award,
+  MapPin,
+  Flame,
+  Radio
 } from "lucide-react";
 import { NagarSetuLogo } from "../common/NagarSetuLogo";
 
-export function LandingGate({ onBackToLanding }) {
+export function LandingGate({ onBackToLanding, defaultRole = "civilian" }) {
   const { setAuthModalOpen, setAuthModalMode, loginWithGoogle } = useAuth();
+  const [activeRoleTab, setActiveRoleTab] = useState(defaultRole || "civilian");
+
+  useEffect(() => {
+    if (defaultRole) {
+      setActiveRoleTab(defaultRole);
+    }
+  }, [defaultRole]);
 
   const handleOpenAuth = (mode) => {
     setAuthModalMode(mode);
@@ -32,113 +46,117 @@ export function LandingGate({ onBackToLanding }) {
   };
 
   return (
-    <div className="min-h-[80vh] flex flex-col items-center justify-center px-4 py-8 max-w-6xl mx-auto animate-fade-in relative">
+    <div className="min-h-[85vh] flex flex-col items-center justify-center px-4 sm:px-6 py-10 max-w-5xl mx-auto animate-fade-in relative font-sans">
       
-      {/* Back to Public Landing Page Button */}
-      {onBackToLanding && (
-        <button
-          type="button"
-          onClick={onBackToLanding}
-          className="self-start sm:absolute sm:top-2 sm:left-4 mb-4 sm:mb-0 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-slate-400 hover:text-white text-xs font-semibold transition cursor-pointer"
-        >
-          <span>←</span>
-          <span>Back to Overview</span>
-        </button>
-      )}
+      {/* Top Bar with Back Button & Role Switcher */}
+      <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
+        {onBackToLanding && (
+          <button
+            type="button"
+            onClick={onBackToLanding}
+            className="self-start inline-flex items-center gap-2 px-4 py-2 bg-white/80 hover:bg-white border border-slate-200 text-slate-700 hover:text-slate-900 rounded-full text-xs font-semibold shadow-sm transition cursor-pointer"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>← Back to Overview</span>
+          </button>
+        )}
 
-      {/* Top Brand Pill */}
-      <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-sky-950/80 border border-sky-800 text-sky-300 text-xs font-bold uppercase tracking-widest mb-6 shadow-glow-primary">
-        <Sparkles className="w-4 h-4 text-sky-400" />
-        <span>Next-Gen Autonomous Municipal Governance</span>
+        {/* Distinct Role Switcher Tabs */}
+        <div className="flex p-1 bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200 shadow-sm gap-1">
+          <button
+            type="button"
+            onClick={() => setActiveRoleTab("civilian")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeRoleTab === "civilian"
+                ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-neon"
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+            }`}
+          >
+            <UserCheck className="w-3.5 h-3.5" />
+            <span>Citizen Portal</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveRoleTab("official")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeRoleTab === "official"
+                ? "bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-lg"
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+            }`}
+          >
+            <Building2 className="w-3.5 h-3.5" />
+            <span>Civic Official</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveRoleTab("tourist")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeRoleTab === "tourist"
+                ? "bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-neon-cyan"
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+            }`}
+          >
+            <Plane className="w-3.5 h-3.5" />
+            <span>Tourist / Visitor</span>
+          </button>
+        </div>
       </div>
 
-      {/* Main Hero Header */}
-      <div className="text-center max-w-3xl mb-12 sm:mb-16">
-        <div className="flex items-center justify-center gap-3 mb-3">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-sky-600 via-sky-500 to-emerald-400 p-0.5 shadow-lg shadow-sky-500/20 flex items-center justify-center">
-            <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center p-2">
-              <NagarSetuLogo className="w-7 h-7" />
-            </div>
-          </div>
-        </div>
-        <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight leading-tight font-sans">
-          NAGAR<span className="text-sky-400">SETU</span>
-        </h1>
-        <div className="text-sm sm:text-base font-bold text-sky-300/90 tracking-wider mt-1 font-sans">
-          नगरसेतु
-        </div>
-        <p className="text-lg sm:text-2xl font-bold text-slate-200 mt-2">
-          Civic Intelligence Platform
-        </p>
-        <p className="text-sm sm:text-base text-slate-400 mt-3 max-w-xl mx-auto leading-relaxed italic">
-          "Report problems. Improve your city. Earn civic impact."
-        </p>
-      </div>
-
-      {/* 3 Primary Role Gateway Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl">
-        
-        {/* 1. Civilian / Resident */}
-        <div className="glass-panel p-6 sm:p-7 rounded-2xl border border-emerald-900/60 hover:border-emerald-500 transition-all duration-300 flex flex-col justify-between group shadow-xl hover:translate-y-[-3px] relative overflow-hidden bg-gradient-to-b from-slate-900/90 to-slate-950">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none group-hover:bg-emerald-500/20 transition"></div>
+      {/* ========================================================= */}
+      {/* 1. DEDICATED CIVILIAN / CITIZEN PORTAL LOGIN              */}
+      {/* ========================================================= */}
+      {activeRoleTab === "civilian" && (
+        <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-center glass-panel p-8 sm:p-10 rounded-3xl shadow-float border border-white/90 animate-slide-up relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
           
-          <div>
-            <div className="w-12 h-12 rounded-xl bg-emerald-950 border border-emerald-700/80 flex items-center justify-center mb-4 text-emerald-400 shadow-inner group-hover:scale-110 transition-transform">
-              <UserCheck className="w-6 h-6" />
+          {/* Left Hero & Benefits */}
+          <div className="lg:col-span-6 space-y-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-bold">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 pulse-dot" />
+              <span>Resident Civic Engagement</span>
             </div>
 
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xl">👤</span>
-              <h2 className="text-lg font-bold text-white uppercase tracking-wider">
-                Civilian
-              </h2>
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
-                Resident
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 leading-tight font-display">
+              Citizen Reporting &amp; <br />
+              <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-pink-600 bg-clip-text text-transparent">
+                Community Points Portal
               </span>
-            </div>
+            </h2>
 
-            <p className="text-xs sm:text-sm text-slate-400 leading-relaxed mb-6">
-              Report civic issues, track resolutions and contribute to your community.
+            <p className="text-sm text-slate-600 leading-relaxed">
+              Report civic issues in your neighborhood, track municipal resolution milestones in real time, and earn verified points for your public contributions.
             </p>
 
-            <ul className="text-xs text-slate-300 space-y-2 mb-6 font-medium">
-              <li className="flex items-center gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                <span>AI Intake & Real Map Pinning</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Personal "My Reports" Tracker</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Earn Validated Civic Points</span>
-              </li>
-            </ul>
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/80 border border-indigo-100 shadow-sm">
+                <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                  <MapPin className="w-4 h-4" />
+                </div>
+                <div className="text-xs">
+                  <span className="font-bold text-slate-800 block">Precise Location Pinning</span>
+                  <span className="text-slate-500">Auto-geocoded with Ward &amp; Street info</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/80 border border-indigo-100 shadow-sm">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+                  <Award className="w-4 h-4" />
+                </div>
+                <div className="text-xs">
+                  <span className="font-bold text-slate-800 block">Earn Validated Rewards</span>
+                  <span className="text-slate-500">Redeem points for civic commendations</span>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="flex flex-col gap-2 pt-2">
-            <button
-              type="button"
-              onClick={() => handleOpenAuth("civilian_login")}
-              className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-md shadow-emerald-600/30 flex items-center justify-center gap-2 transition active:scale-95"
-            >
-              <LogIn className="w-4 h-4" />
-              <span>Sign In</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleOpenAuth("civilian_register")}
-              className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 font-semibold text-xs transition"
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              <span>Create Account</span>
-            </button>
-
-            <div className="relative flex items-center justify-center my-0.5">
-              <div className="border-t border-slate-800 w-full"></div>
-              <span className="bg-slate-900 px-2 text-[10px] uppercase text-slate-500 font-mono">or</span>
+          {/* Right Action Box */}
+          <div className="lg:col-span-6 bg-white/95 p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-xl space-y-4">
+            <div className="text-center pb-2 border-b border-slate-100">
+              <h3 className="text-lg font-bold text-slate-900">Sign In to Citizen Portal</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Use your real Google account or email</p>
             </div>
 
             <GoogleLoginButton
@@ -146,126 +164,163 @@ export function LandingGate({ onBackToLanding }) {
               onError={(err) => console.error("Google sign in error:", err)}
               text="Continue with Google"
             />
+
+            <div className="relative flex items-center justify-center my-2">
+              <div className="border-t border-slate-200 w-full"></div>
+              <span className="bg-white px-3 text-[10px] uppercase text-slate-400 font-mono font-bold">or sign in with password</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => handleOpenAuth("civilian_login")}
+              className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-xs shadow-neon flex items-center justify-center gap-2 transition cursor-pointer"
+            >
+              <LogIn className="w-4 h-4" />
+              <span>Civilian Email Login</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleOpenAuth("civilian_register")}
+              className="w-full py-2.5 px-4 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 font-semibold text-xs transition cursor-pointer"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>New Resident? Create Account</span>
+            </button>
           </div>
         </div>
+      )}
 
-        {/* 2. Civic Official */}
-        <div className="glass-panel p-6 sm:p-7 rounded-2xl border border-sky-900/60 hover:border-sky-500 transition-all duration-300 flex flex-col justify-between group shadow-xl hover:translate-y-[-3px] relative overflow-hidden bg-gradient-to-b from-slate-900/90 to-slate-950">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-sky-500/10 rounded-full blur-2xl pointer-events-none group-hover:bg-sky-500/20 transition"></div>
+      {/* ========================================================= */}
+      {/* 2. DEDICATED CIVIC OFFICIAL COMMAND ACCESS PORTAL         */}
+      {/* ========================================================= */}
+      {activeRoleTab === "official" && (
+        <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-slate-950 text-white p-8 sm:p-10 rounded-3xl shadow-2xl border border-slate-800 animate-slide-up relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
           
-          <div>
-            <div className="w-12 h-12 rounded-xl bg-sky-950 border border-sky-700/80 flex items-center justify-center mb-4 text-sky-400 shadow-inner group-hover:scale-110 transition-transform">
-              <Building2 className="w-6 h-6" />
-            </div>
-            
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xl">🏛️</span>
-              <h2 className="text-lg font-bold text-white uppercase tracking-wider">
-                Official
-              </h2>
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-sky-950 text-sky-300 border border-sky-800">
-                Municipal Staff
-              </span>
+          {/* Left Hero & Official Clearance */}
+          <div className="lg:col-span-6 space-y-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-950/80 border border-blue-800 text-blue-300 text-xs font-mono font-bold">
+              <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
+              <span>MUNICIPAL COMMAND CLEARANCE</span>
             </div>
 
-            <p className="text-xs sm:text-sm text-slate-400 leading-relaxed mb-6">
-              Review, validate and coordinate civic issue resolution across departments.
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-white leading-tight font-display">
+              Civic Operations &amp; <br />
+              <span className="bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400 bg-clip-text text-transparent">
+                Department Triage Bureau
+              </span>
+            </h2>
+
+            <p className="text-sm text-slate-300 leading-relaxed">
+              Authorized municipal workspace for inspecting AI-triaged incidents, supervising field crew dispatch, and validating multi-factor citizen contribution points.
             </p>
 
-            <ul className="text-xs text-slate-300 space-y-2 mb-6 font-medium">
-              <li className="flex items-center gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-sky-400" />
-                <span>Department Ops & Triage Queue</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-sky-400" />
-                <span>Validate Reports & Calculate Points</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-sky-400" />
-                <span>Citywide Hotspot Analytics</span>
-              </li>
-            </ul>
+            <div className="grid grid-cols-2 gap-3 pt-2 font-mono text-xs">
+              <div className="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-1">
+                <span className="text-blue-400 block font-bold">Kanban Triage</span>
+                <span className="text-slate-400 text-[11px]">Real-time queue &amp; SLA clock</span>
+              </div>
+
+              <div className="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-1">
+                <span className="text-emerald-400 block font-bold">Point Validation</span>
+                <span className="text-slate-400 text-[11px]">Award multi-factor points</span>
+              </div>
+            </div>
           </div>
 
-          <div className="pt-2">
+          {/* Right Official Login Box */}
+          <div className="lg:col-span-6 bg-slate-900/90 p-6 sm:p-8 rounded-2xl border border-slate-800 shadow-2xl space-y-4">
+            <div className="text-center pb-2 border-b border-slate-800">
+              <div className="w-10 h-10 rounded-xl bg-blue-950 border border-blue-800 flex items-center justify-center text-blue-400 mx-auto mb-2">
+                <Building2 className="w-5 h-5" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Authorized Official Sign In</h3>
+              <p className="text-xs text-slate-400 mt-0.5">Use your department provisioned Officer ID</p>
+            </div>
+
             <button
               type="button"
               onClick={() => handleOpenAuth("official_login")}
-              className="w-full py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-sm shadow-md shadow-sky-600/30 flex items-center justify-center gap-2 transition active:scale-95"
+              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs tracking-wide shadow-lg flex items-center justify-center gap-2 transition cursor-pointer"
             >
-              <Building2 className="w-4 h-4" />
-              <span>Official Login</span>
+              <Lock className="w-4 h-4" />
+              <span>Enter with Official Credentials</span>
             </button>
-            <p className="text-[10px] text-slate-500 text-center mt-2">
-              Official credentials provisioned by municipal admin
+
+            <p className="text-[11px] text-slate-400 text-center leading-relaxed">
+              Official accounts are provisioned and audited by Municipal IT Administration.
             </p>
           </div>
         </div>
+      )}
 
-        {/* 3. Tourist / Visitor */}
-        <div className="glass-panel p-6 sm:p-7 rounded-2xl border border-purple-900/60 hover:border-purple-500 transition-all duration-300 flex flex-col justify-between group shadow-xl hover:translate-y-[-3px] relative overflow-hidden bg-gradient-to-b from-slate-900/90 to-slate-950">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl pointer-events-none group-hover:bg-purple-500/20 transition"></div>
+      {/* ========================================================= */}
+      {/* 3. DEDICATED TOURIST / VISITOR PORTAL                     */}
+      {/* ========================================================= */}
+      {activeRoleTab === "tourist" && (
+        <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-center glass-panel p-8 sm:p-10 rounded-3xl shadow-float border border-white/90 animate-slide-up relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
           
-          <div>
-            <div className="w-12 h-12 rounded-xl bg-purple-950 border border-purple-700/80 flex items-center justify-center mb-4 text-purple-400 shadow-inner group-hover:scale-110 transition-transform">
-              <Plane className="w-6 h-6" />
+          {/* Left Hero & Benefits */}
+          <div className="lg:col-span-6 space-y-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-50 border border-cyan-100 text-cyan-700 text-xs font-bold">
+              <Plane className="w-3.5 h-3.5" />
+              <span>International &amp; Domestic Visitors</span>
             </div>
 
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xl">✈️</span>
-              <h2 className="text-lg font-bold text-white uppercase tracking-wider">
-                Tourist
-              </h2>
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800">
-                Visitor
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 leading-tight font-display">
+              Tourist &amp; Visitor <br />
+              <span className="bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">
+                Corridor Reporting
               </span>
-            </div>
+            </h2>
 
-            <p className="text-xs sm:text-sm text-slate-400 leading-relaxed mb-6">
-              Report civic issues during your visit and contribute to the city.
+            <p className="text-sm text-slate-600 leading-relaxed">
+              Report issues along tourist routes, transit stations, and public venues with automated passport privacy masking.
             </p>
 
-            <ul className="text-xs text-slate-300 space-y-2 mb-6 font-medium">
-              <li className="flex items-center gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-purple-400" />
-                <span>Tourist Route & Facility Reporting</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-purple-400" />
-                <span>Explore City Analytics</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-purple-400" />
-                <span>Secure Passport Masking & Privacy</span>
-              </li>
-            </ul>
+            <div className="space-y-2 text-xs text-slate-600">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-cyan-600" />
+                <span>Multilingual voice dictation support</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-cyan-600" />
+                <span>Encrypted passport ID verification</span>
+              </div>
+            </div>
           </div>
 
-          <div className="flex flex-col gap-2 pt-2">
-            <button
-              type="button"
-              onClick={() => handleOpenAuth("tourist_auth")}
-              className="w-full py-2.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm shadow-md shadow-purple-600/30 flex items-center justify-center gap-2 transition active:scale-95"
-            >
-              <Plane className="w-4 h-4" />
-              <span>Tourist Login / Register</span>
-            </button>
-
-            <div className="relative flex items-center justify-center my-0.5">
-              <div className="border-t border-slate-800 w-full"></div>
-              <span className="bg-slate-900 px-2 text-[10px] uppercase text-slate-500 font-mono">or</span>
+          {/* Right Action Box */}
+          <div className="lg:col-span-6 bg-white/95 p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-xl space-y-4">
+            <div className="text-center pb-2 border-b border-slate-100">
+              <h3 className="text-lg font-bold text-slate-900">Visitor Authentication</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Quick passport or Google sign in</p>
             </div>
 
             <GoogleLoginButton
               onSuccess={(res) => handleGoogleSuccess(res, UserRole.TOURIST)}
               onError={(err) => console.error("Google sign in error:", err)}
-              text="Continue with Google as Tourist"
+              text="Continue with Google as Visitor"
             />
+
+            <div className="relative flex items-center justify-center my-2">
+              <div className="border-t border-slate-200 w-full"></div>
+              <span className="bg-white px-3 text-[10px] uppercase text-slate-400 font-mono font-bold">or</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => handleOpenAuth("tourist_auth")}
+              className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs shadow-neon-cyan flex items-center justify-center gap-2 transition cursor-pointer"
+            >
+              <Plane className="w-4 h-4" />
+              <span>Passport Register / Login</span>
+            </button>
           </div>
         </div>
-
-      </div>
+      )}
 
     </div>
   );
