@@ -2,6 +2,18 @@
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
 
+async function doFetch(url, config) {
+  const response = await fetch(url, config);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const error = new Error(errorData.detail || errorData.message || `Request failed with status ${response.status}`);
+    error.status = response.status;
+    error.data = errorData;
+    throw error;
+  }
+  return response.json();
+}
+
 export async function apiClient(endpoint, options = {}) {
   const url = `${BASE_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
   
@@ -16,20 +28,17 @@ export async function apiClient(endpoint, options = {}) {
   };
 
   try {
-    const response = await fetch(url, config);
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const error = new Error(errorData.detail || errorData.message || `Request failed with status ${response.status}`);
-      error.status = response.status;
-      error.data = errorData;
-      throw error;
-    }
-    return await response.json();
+    return await doFetch(url, config);
   } catch (err) {
-    // Flag network errors
-    if (err.name === "TypeError" && err.message.includes("fetch")) {
-      err.isNetworkError = true;
-      err.message = "The complaint tracking service is unavailable. Start the backend, then try again.";
+    // Retry once on transient network errors
+    if (err.name === "TypeError" && (err.message.includes("fetch") || err.message.includes("network"))) {
+      try {
+        return await doFetch(url, config);
+      } catch (retryErr) {
+        retryErr.isNetworkError = true;
+        retryErr.message = "Could not reach the backend server. Please ensure it is running and try again.";
+        throw retryErr;
+      }
     }
     throw err;
   }

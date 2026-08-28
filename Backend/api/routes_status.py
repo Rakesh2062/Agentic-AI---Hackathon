@@ -83,9 +83,12 @@ async def get_case_status(case_id: str):
     db = get_db()
 
     try:
-        case_doc = await db[COMPLAINTS_COLLECTION].find_one({"_id": ObjectId(case_id)})
+        oid = ObjectId(case_id)
+        query = {"_id": oid}
     except Exception:
-        raise HTTPException(status_code=400, detail="Invalid case ID format")
+        query = {"$or": [{"complaint_id": case_id}, {"complaint_number": case_id}]}
+
+    case_doc = await db[COMPLAINTS_COLLECTION].find_one(query)
 
     if not case_doc:
         raise HTTPException(status_code=404, detail="Case not found")

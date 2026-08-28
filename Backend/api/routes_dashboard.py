@@ -92,7 +92,9 @@ async def get_all_cases(
 
     cases = []
     async for doc in cursor:
-        doc["_id"] = str(doc["_id"])
+        mongo_id = str(doc["_id"])
+        doc["_id"] = mongo_id
+        doc["id"] = mongo_id  # Expose as 'id' so frontend caseItem.id works
         if "complaint_id" not in doc and "complaint_number" in doc:
             doc["complaint_id"] = doc["complaint_number"]
         cases.append(doc)
@@ -111,10 +113,11 @@ async def validate_complaint(case_id: str, validation: ValidateComplaintRequest)
 
     try:
         oid = ObjectId(case_id)
+        query = {"_id": oid}
     except Exception:
-        raise HTTPException(status_code=400, detail="Invalid case ID format")
+        query = {"$or": [{"complaint_id": case_id}, {"complaint_number": case_id}]}
 
-    case_doc = await db[COMPLAINTS_COLLECTION].find_one({"_id": oid})
+    case_doc = await db[COMPLAINTS_COLLECTION].find_one(query)
     if not case_doc:
         raise HTTPException(status_code=404, detail="Case not found")
 
@@ -141,7 +144,7 @@ async def validate_complaint(case_id: str, validation: ValidateComplaintRequest)
     }
 
     await db[COMPLAINTS_COLLECTION].update_one(
-        {"_id": oid},
+        {"_id": case_doc["_id"]},
         {
             "$set": {
                 "status": "assigned",
@@ -197,8 +200,10 @@ async def validate_complaint(case_id: str, validation: ValidateComplaintRequest)
         except Exception as e:
             log.warning("Failed to award points to citizen %s: %s", citizen_id, e)
 
-    updated = await db[COMPLAINTS_COLLECTION].find_one({"_id": oid})
-    updated["_id"] = str(updated["_id"])
+    updated = await db[COMPLAINTS_COLLECTION].find_one({"_id": case_doc["_id"]})
+    mongo_id = str(updated["_id"])
+    updated["_id"] = mongo_id
+    updated["id"] = mongo_id  # Expose as 'id' so frontend caseItem.id works
     if "complaint_id" not in updated and "complaint_number" in updated:
         updated["complaint_id"] = updated["complaint_number"]
 
@@ -335,10 +340,11 @@ async def update_case_status(case_id: str, update: CaseUpdateRequest):
 
     try:
         oid = ObjectId(case_id)
+        query = {"_id": oid}
     except Exception:
-        raise HTTPException(status_code=400, detail="Invalid case ID format")
+        query = {"$or": [{"complaint_id": case_id}, {"complaint_number": case_id}]}
 
-    case_doc = await db[COMPLAINTS_COLLECTION].find_one({"_id": oid})
+    case_doc = await db[COMPLAINTS_COLLECTION].find_one(query)
     if not case_doc:
         raise HTTPException(status_code=404, detail="Case not found")
 
@@ -387,7 +393,7 @@ async def update_case_status(case_id: str, update: CaseUpdateRequest):
         update_fields["citizen_message"] = state.citizen_message
 
     await db[COMPLAINTS_COLLECTION].update_one(
-        {"_id": oid},
+        {"_id": case_doc["_id"]},
         {
             "$set": update_fields,
             "$push": {"status_history": status_entry.model_dump()},
@@ -411,8 +417,10 @@ async def update_case_status(case_id: str, update: CaseUpdateRequest):
         log.warning("Failed to record audit update log: %s", e)
 
     # Return updated case
-    updated = await db[COMPLAINTS_COLLECTION].find_one({"_id": oid})
-    updated["_id"] = str(updated["_id"])
+    updated = await db[COMPLAINTS_COLLECTION].find_one({"_id": case_doc["_id"]})
+    mongo_id = str(updated["_id"])
+    updated["_id"] = mongo_id
+    updated["id"] = mongo_id  # Expose as 'id' so frontend caseItem.id works
     if "complaint_id" not in updated and "complaint_number" in updated:
         updated["complaint_id"] = updated["complaint_number"]
     return updated

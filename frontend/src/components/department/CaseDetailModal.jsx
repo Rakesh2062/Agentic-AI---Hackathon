@@ -63,13 +63,16 @@ export function CaseDetailModal({ isOpen, onClose, caseItem, onCaseUpdated }) {
   const recurringBonus = isRecurringProblem ? 5 : 0;
   const calculatedPoints = basePoints + evidenceBonus + impactBonus + recurringBonus;
 
+  // Use MongoDB _id first (most reliable), fallback to complaint_id / complaint_number
+  const caseIdForApi = caseItem._id || caseItem.id || caseItem.complaint_id || caseItem.complaint_number;
+
   const handleValidateAndAward = async (e) => {
     e.preventDefault();
     setIsValidating(true);
 
     try {
       const result = await validateAndAwardPoints(
-        caseItem.id,
+        caseIdForApi,
         {
           validatedSeverity,
           highPublicImpact,
@@ -85,7 +88,7 @@ export function CaseDetailModal({ isOpen, onClose, caseItem, onCaseUpdated }) {
           result.pointsAwarded, 
           result.pointsReason, 
           caseItem.summary || caseItem.raw_text,
-          caseItem.complaint_id || caseItem.id
+          caseItem.complaint_id || caseIdForApi
         );
       }
 
@@ -106,7 +109,7 @@ export function CaseDetailModal({ isOpen, onClose, caseItem, onCaseUpdated }) {
     setIsUpdating(true);
     try {
       const updated = await updateCaseStatus(
-        caseItem.id,
+        caseIdForApi,
         {
           status: Status.CLOSED,
           message: `Official Rejected: ${reason}`,
@@ -130,7 +133,7 @@ export function CaseDetailModal({ isOpen, onClose, caseItem, onCaseUpdated }) {
     setIsUpdating(true);
     try {
       const updated = await updateCaseStatus(
-        caseItem.id,
+        caseIdForApi,
         {
           status: Status.UNDER_REVIEW,
           message: `Additional Information Requested: ${note}`,
@@ -159,7 +162,7 @@ export function CaseDetailModal({ isOpen, onClose, caseItem, onCaseUpdated }) {
     };
 
     try {
-      const updated = await updateCaseStatus(caseItem.id, payload);
+      const updated = await updateCaseStatus(caseIdForApi, payload);
       setIsUpdating(false);
       showToast(`Case ${caseItem.complaint_id} updated to ${newStatus.replace("_", " ")}`, "success");
       onCaseUpdated(updated);

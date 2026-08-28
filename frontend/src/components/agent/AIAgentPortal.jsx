@@ -767,7 +767,37 @@ export function AIAgentPortal() {
         <div className="flex-[0.33] hidden lg:flex flex-col gap-4">
 
           {/* Status */}
-          <div className="glass-panel p-5 rounded-2xl border border-slate-800 shadow-lg bg-slate-950/60">
+          <div className="glass-panel p-5 rounded-2xl border border-slate-800 shadow-lg bg-slate-950/60 relative overflow-hidden">
+            <style>{`
+              @keyframes text-shimmer {
+                0% { background-position: -200% center; }
+                100% { background-position: 200% center; }
+              }
+              .flowing-text {
+                background: linear-gradient(90deg, #64748b 0%, #38bdf8 50%, #64748b 100%);
+                background-size: 200% auto;
+                color: transparent;
+                -webkit-background-clip: text;
+                background-clip: text;
+                animation: text-shimmer 2.5s linear infinite;
+                font-weight: 500;
+              }
+              @keyframes moving-dots {
+                0% { content: ''; }
+                25% { content: '.'; }
+                50% { content: '..'; }
+                75% { content: '...'; }
+                100% { content: ''; }
+              }
+              .animated-dots::after {
+                content: '';
+                display: inline-block;
+                width: 12px;
+                text-align: left;
+                animation: moving-dots 1.5s infinite steps(4);
+              }
+            `}</style>
+            
             <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-800">
               <Sparkles className="w-4 h-4 text-sky-400" />
               <h3 className="text-sm font-bold text-white uppercase tracking-wider">Agent Status</h3>
@@ -779,15 +809,15 @@ export function AIAgentPortal() {
                 <p className="text-sm font-bold text-sky-400 mt-0.5">
                   {{
                     IDLE: "Standing By",
-                    CHATTING: "Processing",
-                    COLLECTING_ISSUE: "Collecting Issue",
-                    COLLECTING_LOCATION: "Securing Location",
-                    COLLECTING_EVIDENCE: "Gathering Evidence",
+                    CHATTING: <span className="flowing-text">Processing<span className="animated-dots" /></span>,
+                    COLLECTING_ISSUE: <span className="flowing-text">Collecting Issue<span className="animated-dots" /></span>,
+                    COLLECTING_LOCATION: <span className="flowing-text">Securing Location<span className="animated-dots" /></span>,
+                    COLLECTING_EVIDENCE: <span className="flowing-text">Gathering Evidence<span className="animated-dots" /></span>,
                     REVIEW: "Awaiting Confirmation",
-                    SUBMITTING: "Submitting",
+                    SUBMITTING: <span className="flowing-text">Submitting<span className="animated-dots" /></span>,
                     SUCCESS: "Completed",
                     ERROR: "Failed",
-                  }[conversationState] ?? "Processing"}
+                  }[conversationState] ?? <span className="flowing-text">Processing<span className="animated-dots" /></span>}
                 </p>
               </div>
               <div>
@@ -795,7 +825,7 @@ export function AIAgentPortal() {
                 <p className="text-sm text-slate-200 mt-0.5 line-clamp-2">
                   {extractedData.issue_description
                     ? <><Check className="w-3.5 h-3.5 inline text-emerald-400 mr-1" />Logged</>
-                    : <span className="text-slate-500">Awaiting...</span>
+                    : <span className={conversationState !== "IDLE" && conversationState !== "SUCCESS" ? "flowing-text text-[13px]" : "text-slate-500"}>Awaiting<span className={conversationState !== "IDLE" && conversationState !== "SUCCESS" ? "animated-dots" : ""} /></span>
                   }
                 </p>
               </div>
@@ -804,7 +834,7 @@ export function AIAgentPortal() {
                 <p className="text-sm text-slate-200 mt-0.5 truncate">
                   {location
                     ? <><Check className="w-3.5 h-3.5 inline text-emerald-400 mr-1" />{location.address.slice(0, 30)}{location.address.length > 30 ? "…" : ""}</>
-                    : <span className="text-slate-500">Awaiting...</span>
+                    : <span className={conversationState !== "IDLE" && conversationState !== "SUCCESS" ? "flowing-text text-[13px]" : "text-slate-500"}>Awaiting<span className={conversationState !== "IDLE" && conversationState !== "SUCCESS" ? "animated-dots" : ""} /></span>
                   }
                 </p>
               </div>
@@ -813,7 +843,7 @@ export function AIAgentPortal() {
                 <p className="text-sm text-slate-200 mt-0.5">
                   {attachments.length > 0
                     ? <><Check className="w-3.5 h-3.5 inline text-emerald-400 mr-1" />{attachments.length} file(s)</>
-                    : <span className="text-slate-500">0 files</span>
+                    : <span className={conversationState !== "IDLE" && conversationState !== "SUCCESS" ? "flowing-text text-[13px]" : "text-slate-500"}>0 files<span className={conversationState !== "IDLE" && conversationState !== "SUCCESS" ? "animated-dots" : ""} /></span>
                   }
                 </p>
               </div>
