@@ -108,20 +108,20 @@ export function StatusTracker() {
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Search Header */}
       <div className="text-center mb-6">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-950/80 border border-sky-800 text-sky-300 text-xs font-semibold uppercase tracking-wider mb-3 shadow-inner">
-          <ShieldCheck className="w-3.5 h-3.5 text-sky-400" />
-          Public Civic Transparency Portal
+        <div className="meta-label inline-flex items-center gap-2 border-b border-slate-200 pb-1 mb-3 text-slate-500">
+          <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+          [ 01 ] PUBLIC CIVIC TRANSPARENCY
         </div>
-        <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight font-sans">
-          Track Complaint Resolution
+        <h1 className="text-3xl sm:text-5xl font-bold text-slate-900 tracking-tight uppercase">
+          Track Incident Resolution
         </h1>
-        <p className="text-sm sm:text-base text-slate-400 mt-2 max-w-xl mx-auto">
+        <p className="text-xs sm:text-sm text-slate-500 mt-2 max-w-xl mx-auto">
           Enter your Complaint ID to inspect live AI status summaries, department dispatches, and SLA timeline.
         </p>
       </div>
 
       {/* Search Input Bar */}
-      <div className="glass-panel p-4 sm:p-5 rounded-2xl border border-slate-800 shadow-xl space-y-3">
+      <div className="bg-slate-50 border border-slate-200 p-4 sm:p-5 space-y-3">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -130,19 +130,19 @@ export function StatusTracker() {
           className="flex flex-col sm:flex-row gap-3"
         >
           <div className="relative flex-1">
-            <Search className="w-5 h-5 text-slate-400 absolute left-3.5 top-3.5" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
             <input
               type="text"
               value={searchId}
               onChange={(e) => setSearchId(e.target.value)}
               placeholder="e.g. CMP-2026-8821"
-              className="w-full bg-slate-950/90 border border-slate-700/80 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 rounded-xl pl-11 pr-4 py-3 text-sm sm:text-base text-slate-100 placeholder-slate-500 font-mono outline-none uppercase"
+              className="focus-ring w-full bg-white border border-slate-200 focus:border-slate-400 pl-10 pr-4 py-2.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 font-mono outline-none uppercase"
             />
           </div>
           <button
             type="submit"
             disabled={loading || !searchId.trim()}
-            className="px-6 py-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-sm shadow-md shadow-sky-600/30 flex items-center justify-center gap-2 disabled:opacity-50 transition"
+            className="focus-ring px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-mono text-xs uppercase tracking-wider font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition cursor-pointer"
           >
             {loading ? (
               <>
@@ -159,9 +159,9 @@ export function StatusTracker() {
         </form>
 
         {/* Quick Sample IDs */}
-        <div className="flex items-center flex-wrap gap-1.5 pt-1 text-xs text-slate-400">
-          <span className="text-[11px] uppercase tracking-wider font-semibold text-slate-400">
-            Quick Examples:
+        <div className="flex items-center flex-wrap gap-1.5 pt-1 text-xs">
+          <span className="meta-label text-[9px] mr-1 text-slate-400">
+            Examples:
           </span>
           {SAMPLE_TRACK_IDS.map((id) => (
             <button
@@ -171,7 +171,7 @@ export function StatusTracker() {
                 setSearchId(id);
                 handleSearch(id);
               }}
-              className="font-mono text-[11px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-sky-400 border border-slate-700 transition"
+              className="font-mono text-[10px] px-2 py-0.5 bg-slate-100 hover:bg-slate-250 text-slate-600 border border-slate-200 transition cursor-pointer"
             >
               {id}
             </button>
@@ -181,12 +181,12 @@ export function StatusTracker() {
 
       {/* Error Message */}
       {errorMsg && (
-        <div className="flex items-center gap-3 p-4 bg-rose-950/80 border border-rose-800 text-rose-200 rounded-xl text-sm animate-fade-in">
-          <AlertCircle className="w-5 h-5 flex-shrink-0 text-rose-400" />
+        <div className="flex items-center gap-3 p-4 bg-rose-50 border border-rose-200 text-rose-750 text-xs font-mono animate-fade-in">
+          <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-600" />
           <div>
             <p className="font-semibold">{errorMsg}</p>
-            <p className="text-xs text-rose-300/80 mt-0.5">
-              Check the ID format (e.g. CMP-2026-XXXX) or try one of the sample tracking IDs above.
+            <p className="text-[10px] text-rose-600/80 mt-0.5">
+              Check the ID format (e.g. CMP-XXXX) or try one of the sample tracking IDs above.
             </p>
           </div>
         </div>
@@ -196,14 +196,14 @@ export function StatusTracker() {
       {statusData && (
         <div className="space-y-6 animate-slide-up">
           {/* Main Status Hero Card */}
-          <div className="glass-card rounded-2xl p-6 sm:p-7 border border-slate-800 space-y-5">
+          <div className="bg-slate-50 border border-slate-200 p-6 sm:p-7 space-y-5">
             {/* Top Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
               <div>
-                <span className="text-xs uppercase font-mono tracking-widest text-slate-400">
-                  Tracking Record
+                <span className="meta-label block mb-1 text-slate-400">
+                  [ TRACKING RECORD ]
                 </span>
-                <h2 className="text-xl sm:text-2xl font-extrabold text-white font-mono flex items-center gap-2">
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 font-mono flex items-center gap-2">
                   {statusData.complaint_id}
                 </h2>
               </div>
@@ -215,67 +215,67 @@ export function StatusTracker() {
             </div>
 
             {/* AI Status Explainer Box */}
-            <div className="bg-gradient-to-r from-sky-950/60 via-slate-900 to-emerald-950/30 border border-sky-800/60 rounded-xl p-4 sm:p-5 shadow-inner">
+            <div className="bg-white border border-slate-200 p-4 sm:p-5">
               <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-sky-300">
-                  <Sparkles className="w-4 h-4 text-sky-400" />
-                  <span>AI Status Explainer Agent Output</span>
+                <div className="meta-label text-[10px] text-slate-500 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>AI Status Explainer Output</span>
                 </div>
-                <span className="text-[11px] text-slate-400 font-mono">
+                <span className="text-[10px] text-slate-400 font-mono">
                   Updated: {formatDate(statusData.last_updated)}
                 </span>
               </div>
-              <p className="text-slate-100 text-sm sm:text-base leading-relaxed font-medium">
+              <p className="text-slate-700 text-xs sm:text-sm leading-relaxed font-mono">
                 "{statusData.message}"
               </p>
             </div>
 
             {/* Meta Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-              <div className="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800">
-                <span className="text-xs text-slate-400 block mb-1">Assigned Department</span>
-                <span className="text-sm font-bold text-slate-200 flex items-center gap-1.5">
-                  <Building2 className="w-4 h-4 text-sky-400" />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+              <div className="bg-white p-3.5 border border-slate-200">
+                <span className="meta-label text-[9px] block mb-1 text-slate-400">Assigned Bureau</span>
+                <span className="text-xs font-mono font-bold text-slate-800 flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5 text-slate-550" />
                   {statusData.department}
                 </span>
               </div>
 
-              <div className="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800">
-                <span className="text-xs text-slate-400 block mb-1">SLA Target & Urgency</span>
+              <div className="bg-white p-3.5 border border-slate-200">
+                <span className="meta-label text-[9px] block mb-1 text-slate-400">SLA Target &amp; Urgency</span>
                 <SLAIndicator 
                   slaDeadline={statusData.raw_case?.sla_deadline} 
                   status={statusData.status} 
                 />
               </div>
 
-              <div className="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800">
-                <span className="text-xs text-slate-400 block mb-1">Civic Verification</span>
-                <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  Autonomous Agent Validated
+              <div className="bg-white p-3.5 border border-slate-200">
+                <span className="meta-label text-[9px] block mb-1 text-slate-400">Civic Verification</span>
+                <span className="text-xs font-mono text-slate-700 flex items-center gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                  Validated by City AI
                 </span>
               </div>
             </div>
 
             {/* Interactive Co-Signing & Map Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-950/60 p-3.5 rounded-xl border border-slate-800">
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-100 p-3 border border-slate-200">
               <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={handleCoSign}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                  className={`px-3 py-1.5 font-mono text-xs uppercase tracking-wider transition flex items-center gap-1.5 cursor-pointer ${
                     hasCoSigned
-                      ? "bg-emerald-950 text-emerald-300 border border-emerald-700"
-                      : "bg-slate-900 hover:bg-sky-600 text-slate-200 hover:text-white border border-slate-700"
+                      ? "bg-slate-200 text-slate-750 border border-slate-300"
+                      : "bg-slate-900 hover:bg-slate-800 text-white font-bold"
                   }`}
                 >
                   <ThumbsUp className="w-3.5 h-3.5" />
                   <span>{hasCoSigned ? "You Co-Signed (+1)" : "I'm Affected Too"}</span>
                 </button>
 
-                <span className="text-xs text-slate-400 flex items-center gap-1 font-mono">
-                  <Users className="w-3.5 h-3.5 text-emerald-400" />
-                  <strong className="text-slate-200 font-bold">{coSignCount}</strong> citizens reported
+                <span className="text-xs text-slate-500 flex items-center gap-1 font-mono">
+                  <Users className="w-3.5 h-3.5 text-slate-400" />
+                  <strong className="text-slate-800">{coSignCount}</strong> citizens affected
                 </span>
               </div>
 
@@ -283,28 +283,28 @@ export function StatusTracker() {
                 <button
                   type="button"
                   onClick={() => setShowLocationMap(!showLocationMap)}
-                  className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-semibold border border-slate-700 flex items-center gap-1.5 transition"
+                  className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-655 text-xs font-mono uppercase tracking-wider border border-slate-200 flex items-center gap-1.5 transition cursor-pointer"
                 >
-                  <MapIcon className="w-3.5 h-3.5 text-sky-400" />
-                  <span>{showLocationMap ? "Hide Location Map" : "View Ward Map"}</span>
+                  <MapIcon className="w-3.5 h-3.5 text-slate-500" />
+                  <span>{showLocationMap ? "Hide Map" : "View Map"}</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleShareLink}
-                  className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-700 transition"
+                  className="p-1.5 bg-white hover:bg-slate-50 text-slate-455 hover:text-slate-800 border border-slate-200 transition cursor-pointer"
                   title="Share tracking link"
                 >
-                  {linkCopied ? <Check className="w-4 h-4 text-emerald-400" /> : <Share2 className="w-4 h-4" />}
+                  {linkCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Share2 className="w-3.5 h-3.5" />}
                 </button>
 
                 <button
                   type="button"
                   onClick={handlePrintCertificate}
-                  className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-700 transition"
+                  className="p-1.5 bg-white hover:bg-slate-50 text-slate-455 hover:text-slate-800 border border-slate-200 transition cursor-pointer"
                   title="Print case report"
                 >
-                  <Printer className="w-4 h-4" />
+                  <Printer className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
@@ -323,7 +323,7 @@ export function StatusTracker() {
           </div>
 
           {/* Timeline */}
-          <div className="glass-card rounded-2xl p-6 sm:p-7 border border-slate-800 shadow-xl">
+          <div className="bg-slate-50 border border-slate-200 p-6 sm:p-7">
             <StatusTimeline
               history={statusData.history}
               currentStatus={statusData.status}

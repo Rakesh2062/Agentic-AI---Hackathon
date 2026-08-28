@@ -19,7 +19,8 @@ import {
   Map as MapIcon,
   Layers,
   Building2,
-  Lock
+  Lock,
+  Award
 } from "lucide-react";
 import { createComplaint, getDepartmentCases, uploadFile } from "../../api/endpoints";
 import { useApp } from "../../context/AppContext";
@@ -62,147 +63,117 @@ const QUICK_PROMPTS = [
 ];
 
 export function ComplaintForm() {
-  const { showToast, navigateToTrack } = useApp();
+  const { showToast, setCitizenSubTab, navigateToTrack } = useApp();
   const { currentUser, isOfficial, recordComplaintSubmitted } = useAuth();
 
-  // Form Fields
   const [title, setTitle] = useState("");
   const [rawText, setRawText] = useState("");
-
-  // Location
   const [address, setAddress] = useState("");
   const [ward, setWard] = useState("");
-  const [coords, setCoords] = useState({ lat: 37.7749, lng: -122.4194 });
-  const [showMapPicker, setShowMapPicker] = useState(false);
+  const [coords, setCoords] = useState({ lat: 16.5062, lng: 80.6480 });
   const [locationPinned, setLocationPinned] = useState(false);
-  const [existingCases, setExistingCases] = useState([]);
-
-  // Voice recording & AI Enhance
-  const [isRecording, setIsRecording] = useState(false);
-  const [isEnhancing, setIsEnhancing] = useState(false);
-
-  // File Attachments
   const [attachments, setAttachments] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
-
-  // Submission State
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [createdCase, setCreatedCase] = useState(null);
+  const [submittedResult, setSubmittedResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [existingCases, setExistingCases] = useState([]);
+  const [showMapPicker, setShowMapPicker] = useState(false);
 
+  // Voice recording simulation
+  const [isRecording, setIsRecording] = useState(false);
+  const [speechRecognition, setSpeechRecognition] = useState(null);
+  const [isEnhancing, setIsEnhancing] = useState(false);
+
+  // Initialize browser Web Speech API
   useEffect(() => {
-    getDepartmentCases("all").then((cases) => {
-      if (cases) setExistingCases(cases);
-    });
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = "en-US";
+
+      recognition.onresult = (event) => {
+        let transcript = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+        }
+        setRawText((prev) => (prev ? prev + " " + transcript : transcript));
+      };
+
+      recognition.onerror = (event) => {
+        setIsRecording(false);
+      };
+
+      recognition.onend = () => {
+        setIsRecording(false);
+      };
+
+      setSpeechRecognition(recognition);
+    }
   }, []);
 
-  // Officials are not permitted to submit citizen reports
-  if (isOfficial) {
-    return (
-      <div className="glass-card p-12 text-center rounded-2xl border border-sky-900/60 max-w-lg mx-auto space-y-3">
-        <Building2 className="w-12 h-12 text-sky-400 mx-auto" />
-        <h2 className="text-lg font-bold text-white">Civic Official Account</h2>
-        <p className="text-xs text-slate-400">
-          Civic Officials are authorized validators and reviewers. Report submission is reserved for Civilians and Tourists.
-        </p>
-      </div>
-    );
-  }
-
-  const handleQuickPrompt = (prompt) => {
-    setTitle(prompt.title);
-    setRawText(prompt.text);
-    setWard(prompt.ward);
-    setAddress(prompt.address);
-  };
-
-  const handleMapLocationSelect = (loc) => {
-    setCoords({ lat: loc.lat, lng: loc.lng });
-    if (loc.address) setAddress(loc.address);
-    if (loc.ward) setWard(loc.ward);
-    setLocationPinned(true);
-    showToast(`Location set: ${loc.address || loc.ward}`, "success");
-  };
-
-  // Voice recording
   const toggleVoiceRecording = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      if (!isRecording) {
-        setIsRecording(true);
-        showToast("Voice input simulated: Speak now...", "info");
-        setTimeout(() => {
-          setRawText((prev) => 
-            prev ? `${prev} Broken water supply pipe flooding road and reducing water pressure in homes.` : "Broken water supply pipe flooding road and reducing water pressure in homes."
-          );
-          setIsRecording(false);
-          showToast("Voice transcribed successfully!", "success");
-        }, 3000);
-      } else {
-        setIsRecording(false);
-      }
+    if (!speechRecognition) {
+      alert("Speech recognition is not supported in this browser. Please type your complaint.");
       return;
     }
 
     if (isRecording) {
+      speechRecognition.stop();
       setIsRecording(false);
-      return;
-    }
-
-    try {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = "en-US";
-
-      recognition.onstart = () => {
+    } else {
+      try {
+        speechRecognition.start();
         setIsRecording(true);
-        showToast("Listening... Speak your complaint clearly", "info");
-      };
-      recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        setRawText((prev) => (prev ? `${prev} ${transcript}` : transcript));
+      } catch (err) {
         setIsRecording(false);
-        showToast("Voice transcribed!", "success");
-      };
-      recognition.onerror = () => setIsRecording(false);
-      recognition.onend = () => setIsRecording(false);
-      recognition.start();
-    } catch (e) {
-      setIsRecording(false);
+      }
     }
   };
 
-  // AI Prompt Enriched
-  const handleAIEnhance = () => {
-    if (!rawText.trim()) {
-      showToast("Please enter a brief description first to enhance it with AI", "info");
-      return;
-    }
-
+  const handleAIEnhance = async () => {
+    if (!rawText.trim()) return;
     setIsEnhancing(true);
+    
+    // Simulate AI intelligent refinement
     setTimeout(() => {
-      const enhanced = `[Civic Incident Report]: ${rawText.trim()}. Observed active public inconvenience and potential safety risk to pedestrians and vehicles. Requires rapid municipal inspection, immediate hazard signage, and corrective field maintenance.`;
+      let enhanced = rawText.trim();
+      if (!enhanced.endsWith(".")) enhanced += ".";
+      enhanced += " Immediate municipal inspection requested to mitigate public safety risks.";
       setRawText(enhanced);
       setIsEnhancing(false);
-      showToast("Description enriched with municipal hazard taxonomy!", "success");
-    }, 700);
+      showToast("Complaint enhanced with AI municipal context!", "info");
+    }, 800);
   };
 
-  // File Upload Handlers
+  useEffect(() => {
+    getDepartmentCases()
+      .then((data) => setExistingCases(data || []))
+      .catch(() => {});
+  }, []);
+
+  const handleQuickPrompt = (item) => {
+    setTitle(item.title);
+    setRawText(item.text);
+    setWard(item.ward);
+    setAddress(item.address);
+  };
+
   const handleFileSelect = (e) => {
     const files = Array.from(e.target.files || []);
-    addFilesToAttachments(files);
+    addFiles(files);
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     setIsDragging(false);
-    const files = Array.from(e.dataTransfer.files || []);
-    addFilesToAttachments(files);
+    const files = Array.from(e.dataTransfer?.files || []);
+    addFiles(files);
   };
 
-  const addFilesToAttachments = async (files) => {
+  const addFilesToAttachments = (files) => {
     const validFiles = files.filter((f) => {
       const isImg = f.type.startsWith("image/");
       const isPdf = f.type === "application/pdf";
@@ -213,141 +184,143 @@ export function ComplaintForm() {
     if (validFiles.length < files.length) {
       showToast("Some unsupported file formats were skipped (Supports JPG, PNG, WEBP, PDF).", "warning");
     }
-    if (!validFiles.length) return;
 
-    showToast(`Uploading ${validFiles.length} file(s)...`, "info");
+    const newItems = validFiles.map((f) => ({
+      name: f.name,
+      size: `${(f.size / (1024 * 1024)).toFixed(1)} MB`,
+      url: URL.createObjectURL(f),
+      type: f.type.startsWith("image/") ? "image" : f.type === "application/pdf" ? "document" : "video",
+    }));
 
-    const newItems = [];
-    for (const f of validFiles) {
-      try {
-        const result = await uploadFile(f);
-        const backendBase = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1").replace("/api/v1", "");
-        newItems.push({
-          name: f.name,
-          size: `${(f.size / (1024 * 1024)).toFixed(1)} MB`,
-          url: `${backendBase}${result.url}`,
-          type: f.type.startsWith("image/") ? "image" : f.type === "application/pdf" ? "document" : "video",
-        });
-      } catch (err) {
-        showToast(`Failed to upload ${f.name}: ${err.message}`, "error");
-      }
-    }
-    if (!newItems.length) return;
-
-    setAttachments((prev) => [...prev, ...newItems]);
-    showToast(`${newItems.length} file(s) uploaded!`, "success");
+    setAttachments([...attachments, ...newItems]);
+    showToast(`Attached ${validFiles.length} file(s)`, "success");
   };
 
-  const removeAttachment = (idx) => {
-    setAttachments(attachments.filter((_, i) => i !== idx));
+  const removeAttachment = (index) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleMapLocationSelect = (loc) => {
+    setCoords({ lat: loc.lat, lng: loc.lng });
+    setAddress(loc.address || address);
+    setWard(loc.ward || ward);
+    setLocationPinned(true);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!rawText.trim()) {
-      setErrorMsg("Please describe the civic issue before submitting.");
-      return;
-    }
+    if (!rawText.trim()) return;
 
-    setErrorMsg("");
     setIsSubmitting(true);
+    setErrorMsg("");
 
     const payload = {
-      title: title.trim() || rawText.slice(0, 60),
       raw_text: rawText.trim(),
-      // Automatically associate authenticated user ID & profile
-      userId: currentUser?.id || "usr_civilian_01",
-      citizen_name: currentUser?.name || "Civilian Participant",
-      citizen_email: currentUser?.email || "civilian@gmail.com",
+      title: title.trim() || undefined,
       location: {
-        lat: coords.lat,
-        lng: coords.lng,
-        address: address.trim() || "Unspecified Municipal Location",
-        ward: ward,
-        zone: "Municipal Zone",
+        address: address.trim() || "Unspecified Location",
+        ward: ward.trim() || "Ward 4 - Central West",
+        latitude: coords.lat,
+        longitude: coords.lng,
       },
-      attachments: attachments.map((a) => a.url),
+      attachments: attachments.map((a) => ({ name: a.name, size: a.size, url: a.url, type: a.type })),
     };
 
     try {
-      const response = await createComplaint(payload);
-      if (recordComplaintSubmitted) {
-        recordComplaintSubmitted(currentUser?.id);
-      }
-      setCreatedCase(response);
+      const result = await createComplaint(payload);
       setIsSubmitting(false);
 
-      try {
-        confetti({
-          particleCount: 75,
-          spread: 60,
-          origin: { y: 0.6 },
-          colors: ["#38bdf8", "#0284c7", "#10b981", "#fbbf24"],
-        });
-      } catch (err) {}
+      if (currentUser?.id) {
+        recordComplaintSubmitted(currentUser.id);
+      }
 
-      showToast(`Complaint ${response.complaint_id} submitted & queued for official validation!`, "success");
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        origin: { y: 0.6 },
+      });
+
+      setSubmittedResult(result);
+      showToast("Incident report processed by AI and submitted!", "success");
     } catch (err) {
       setIsSubmitting(false);
-      setErrorMsg(err.message || "Failed to submit complaint. Please try again.");
-      showToast(err.message || "Submission failed", "error");
+      setErrorMsg(err.message || "Failed to submit report. Please try again.");
     }
   };
 
-  const handleReset = () => {
-    setCreatedCase(null);
-    setTitle("");
-    setRawText("");
-    setAddress("");
-    setAttachments([]);
-    setErrorMsg("");
-  };
+  if (isOfficial) {
+    return (
+      <div className="glass-panel p-12 rounded-3xl text-center max-w-lg mx-auto space-y-4 shadow-float">
+        <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto shadow-sm">
+          <Building2 className="w-7 h-7" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900 font-display">Official Account Active</h2>
+        <p className="text-xs text-slate-600 leading-relaxed">
+          Civic officials review, triage, and manage department operations. Citizen incident reporting is restricted for administrative accountability.
+        </p>
+      </div>
+    );
+  }
 
-  if (createdCase) {
+  if (submittedResult) {
     return (
       <ComplaintSuccess
-        createdCase={createdCase}
-        onTrackNow={(id) => navigateToTrack(id)}
-        onNewComplaint={handleReset}
+        createdCase={submittedResult}
+        onTrackNow={(id) => {
+          // Navigate to the Track tab and pre-fill the tracking ID
+          if (navigateToTrack) {
+            navigateToTrack(id);
+          } else {
+            setCitizenSubTab("track");
+          }
+        }}
+        onNewComplaint={() => {
+          setSubmittedResult(null);
+          setRawText("");
+          setTitle("");
+          setAttachments([]);
+          setAddress("");
+          setWard("");
+          setLocationPinned(false);
+          setErrorMsg("");
+        }}
       />
     );
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
       <AgentPipelineOverlay isVisible={isSubmitting} />
       
       {/* Header Info */}
-      <div className="text-center mb-6">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-950/80 border border-sky-800 text-sky-300 text-xs font-semibold uppercase tracking-wider mb-3 shadow-inner">
-          <Sparkles className="w-3.5 h-3.5 text-sky-400" />
-          Autonomous Multi-Agent Intake
+      <div className="text-center mb-6 space-y-2">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-bold shadow-sm">
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>AUTONOMOUS MULTI-AGENT INTAKE</span>
         </div>
-        <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight font-sans">
-          Report a Civic Issue
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight font-display">
+          Submit Incident Report
         </h1>
-        <p className="text-sm sm:text-base text-slate-400 mt-2 max-w-xl mx-auto">
-          Describe any municipal problem. Our AI pipeline categorizes, scores priority, and queues it for official verification & point awarding.
+        <p className="text-xs sm:text-sm text-slate-600 max-w-xl mx-auto">
+          Describe any municipal infrastructure problem. Our AI pipeline categorizes, scores priority, and queues it for official verification.
         </p>
       </div>
 
       {/* Main Form Card */}
       <form
         onSubmit={handleSubmit}
-        className="glass-panel rounded-2xl p-5 sm:p-8 shadow-2xl border border-slate-800 space-y-6"
+        className="glass-panel p-6 sm:p-10 rounded-3xl border border-white/80 shadow-float space-y-6 bg-white/85 backdrop-blur-2xl"
       >
         {/* Quick Example Autofills */}
         <div>
-          <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider block mb-2">
-            Quick Examples (Click to Autofill):
-          </label>
+          <span className="text-xs font-bold text-slate-700 block mb-2">✨ Quick Example Pre-fills:</span>
           <div className="flex flex-wrap gap-2">
             {QUICK_PROMPTS.map((item, idx) => (
               <button
                 type="button"
                 key={idx}
                 onClick={() => handleQuickPrompt(item)}
-                className="text-xs px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 hover:text-white border border-slate-700/80 transition"
+                className="text-xs font-medium px-3.5 py-1.5 rounded-xl bg-white hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border border-slate-200 shadow-sm transition"
               >
                 {item.title}
               </button>
@@ -355,9 +328,9 @@ export function ComplaintForm() {
           </div>
         </div>
 
-        {/* Optional issue title — AI determines category and department. */}
+        {/* Issue Title / Headline */}
         <div>
-          <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block mb-1.5">
+          <label className="text-xs font-bold text-slate-700 block mb-1.5">
             Issue Title / Headline
           </label>
           <input
@@ -365,30 +338,30 @@ export function ComplaintForm() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Deep Pothole at Main Intersection"
-            className="w-full bg-slate-950 border border-slate-700 focus:border-sky-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 outline-none"
+            className="w-full bg-white border border-slate-200 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 outline-none transition shadow-sm"
           />
         </div>
 
         {/* Description Textarea + Voice & AI Tools */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="text-sm font-bold text-slate-200 flex items-center gap-2">
+            <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
               <span>Detailed Description</span>
-              <span className="text-red-400">*</span>
+              <span className="text-rose-500">*</span>
             </label>
             
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={toggleVoiceRecording}
-                className={`text-xs font-semibold px-2.5 py-1 rounded-lg border transition flex items-center gap-1.5 ${
+                className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition flex items-center gap-1.5 ${
                   isRecording
-                    ? "bg-rose-950 text-rose-300 border-rose-600 animate-pulse"
-                    : "bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-700"
+                    ? "bg-rose-50 text-rose-600 border-rose-300 animate-pulse"
+                    : "bg-white hover:bg-slate-50 text-slate-700 border-slate-200 shadow-sm"
                 }`}
                 title="Dictate with voice"
               >
-                {isRecording ? <MicOff className="w-3.5 h-3.5 text-rose-400" /> : <Mic className="w-3.5 h-3.5 text-sky-400" />}
+                {isRecording ? <MicOff className="w-3.5 h-3.5 text-rose-500" /> : <Mic className="w-3.5 h-3.5 text-indigo-600" />}
                 <span>{isRecording ? "Recording..." : "Voice Input"}</span>
               </button>
 
@@ -396,12 +369,12 @@ export function ComplaintForm() {
                 type="button"
                 onClick={handleAIEnhance}
                 disabled={isEnhancing || !rawText.trim()}
-                className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-sky-950/80 hover:bg-sky-900 text-sky-300 border border-sky-800 transition flex items-center gap-1.5 disabled:opacity-40"
+                className="text-xs font-bold px-3 py-1.5 rounded-xl bg-white hover:bg-indigo-50 text-indigo-600 border border-indigo-200 shadow-sm transition flex items-center gap-1.5 disabled:opacity-40"
               >
                 {isEnhancing ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 ) : (
-                  <Wand2 className="w-3.5 h-3.5 text-sky-400" />
+                  <Wand2 className="w-3.5 h-3.5" />
                 )}
                 <span>AI Enhance</span>
               </button>
@@ -414,22 +387,22 @@ export function ComplaintForm() {
             placeholder="Describe what is happening, exact location clues, hazard severity, or affected public..."
             rows={4}
             required
-            className="w-full bg-slate-950/80 border border-slate-700/80 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 rounded-xl p-4 text-slate-100 placeholder-slate-500 text-sm sm:text-base outline-none transition resize-y"
+            className="w-full bg-white border border-slate-200 focus:border-indigo-500 rounded-2xl p-4 text-slate-900 placeholder-slate-400 text-xs outline-none transition resize-y shadow-sm"
           />
-          <span className="text-[11px] text-slate-500 font-mono block mt-1 text-right">
+          <span className="text-[10px] block mt-1 text-right text-slate-400 font-mono">
             {rawText.length} characters
           </span>
         </div>
 
         {/* Multi-File Evidence & Attachments Section */}
-        <div className="bg-slate-950/50 border border-slate-800/90 rounded-xl p-4 sm:p-5 space-y-3">
+        <div className="p-5 rounded-2xl border border-indigo-100 bg-indigo-50/30 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Paperclip className="w-4 h-4 text-sky-400" />
-              <span className="text-sm font-bold text-slate-200">Evidence / Attachments</span>
+              <Paperclip className="w-4 h-4 text-indigo-600" />
+              <span className="text-xs font-bold text-slate-800">Upload Evidence Photos or Documents</span>
             </div>
-            <span className="text-[11px] text-emerald-400 font-medium">
-              +5 Bonus Points for verified photo evidence
+            <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+              +5 Bonus Points for verified photo
             </span>
           </div>
 
@@ -441,22 +414,22 @@ export function ComplaintForm() {
             }}
             onDragLeave={() => setIsDragging(false)}
             onDrop={handleDrop}
-            className={`border-2 border-dashed rounded-xl p-5 text-center transition ${
+            className={`border-2 border-dashed rounded-2xl p-6 text-center transition ${
               isDragging
-                ? "border-sky-500 bg-sky-950/30"
-                : "border-slate-800 hover:border-slate-700 bg-slate-900/40"
+                ? "border-indigo-500 bg-indigo-50"
+                : "border-slate-300 hover:border-indigo-300 bg-white/80"
             }`}
           >
-            <UploadCloud className="w-8 h-8 text-sky-400 mx-auto mb-2" />
-            <p className="text-xs text-slate-300 font-semibold">
+            <UploadCloud className="w-7 h-7 text-indigo-500 mx-auto mb-2" />
+            <p className="text-xs font-semibold text-slate-700">
               Drag and drop incident photos or PDF documents here
             </p>
-            <p className="text-[11px] text-slate-500 mt-1">
-              Supports JPG, JPEG, PNG, WEBP, PDF up to 10MB
+            <p className="text-[10px] text-slate-400 mt-0.5">
+              Supports JPG, PNG, WEBP, PDF up to 10MB
             </p>
 
-            <label className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer border border-slate-700 transition">
-              <Camera className="w-3.5 h-3.5 text-sky-400" />
+            <label className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl cursor-pointer shadow-sm transition">
+              <Camera className="w-3.5 h-3.5" />
               <span>Choose Files</span>
               <input
                 type="file"
@@ -471,26 +444,26 @@ export function ComplaintForm() {
           {/* Attached Files List */}
           {attachments.length > 0 && (
             <div className="space-y-2 pt-2">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+              <span className="text-xs font-bold text-slate-700 block">
                 Evidence Files ({attachments.length}):
               </span>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {attachments.map((file, idx) => (
                   <div
                     key={idx}
-                    className="flex items-center justify-between p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs"
+                    className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 text-xs shadow-sm"
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       {file.type === "image" ? (
-                        <Camera className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                        <Camera className="w-4 h-4 text-indigo-500 flex-shrink-0" />
                       ) : (
-                        <FileText className="w-4 h-4 text-sky-400 flex-shrink-0" />
+                        <FileText className="w-4 h-4 text-indigo-500 flex-shrink-0" />
                       )}
                       <div className="min-w-0">
-                        <span className="font-semibold text-slate-200 truncate block">
+                        <span className="font-semibold text-slate-800 truncate block">
                           {file.name}
                         </span>
-                        <span className="text-[10px] text-slate-500 font-mono">
+                        <span className="text-[9px] text-slate-400 font-mono">
                           {file.size}
                         </span>
                       </div>
@@ -499,7 +472,7 @@ export function ComplaintForm() {
                     <button
                       type="button"
                       onClick={() => removeAttachment(idx)}
-                      className="text-slate-500 hover:text-rose-400 p-1"
+                      className="text-slate-400 hover:text-rose-500 p-1"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -510,29 +483,29 @@ export function ComplaintForm() {
           )}
         </div>
 
-        {/* Real Google Maps Location Picker Section */}
-        <div className="bg-slate-950/50 border border-slate-800/90 rounded-xl p-4 sm:p-5 space-y-4">
+        {/* Location Picker Section */}
+        <div className="p-5 rounded-2xl border border-slate-200 bg-white/70 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-sky-400" />
-              <span className="text-sm font-bold text-slate-200">Incident Location</span>
+              <MapPin className="w-4 h-4 text-indigo-600" />
+              <span className="text-xs font-bold text-slate-800">Incident Location &amp; Ward</span>
             </div>
 
             <button
               type="button"
               onClick={() => setShowMapPicker(!showMapPicker)}
-              className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition ${
+              className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border transition ${
                 showMapPicker
-                  ? "bg-sky-600 text-white border-sky-500"
-                  : "bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-700"
+                  ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                  : "bg-white hover:bg-slate-50 text-slate-700 border-slate-200 shadow-sm"
               }`}
             >
               <MapIcon className="w-3.5 h-3.5" />
-              <span>{showMapPicker ? "Hide Map Picker" : "Select Location on Map"}</span>
+              <span>{showMapPicker ? "Hide Map Picker" : "Select on Map"}</span>
             </button>
           </div>
 
-          {/* Google Maps Picker */}
+          {/* Map Picker */}
           {showMapPicker && (
             <div className="pt-1 animate-slide-up">
               <GoogleMapsPicker
@@ -546,7 +519,7 @@ export function ComplaintForm() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-slate-400 block mb-1">
+              <label className="text-xs font-bold text-slate-700 block mb-1">
                 Street Address / Landmark
               </label>
               <input
@@ -554,23 +527,23 @@ export function ComplaintForm() {
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 placeholder="e.g. 742 Evergreen Terrace, near Library"
-                className="w-full bg-slate-900 border border-slate-700/80 focus:border-sky-500 rounded-lg px-3.5 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none"
+                className="w-full bg-white border border-slate-200 focus:border-indigo-500 rounded-xl px-3.5 py-2 text-xs text-slate-900 placeholder-slate-400 outline-none"
               />
             </div>
 
             <div>
-              <label className="text-xs font-medium text-slate-400 block mb-1">
+              <label className="text-xs font-bold text-slate-700 block mb-1">
                 Municipal Ward / District
               </label>
               <input
                 type="text"
                 value={ward}
                 onChange={(e) => setWard(e.target.value)}
-                placeholder="Auto-detected from map or type manually"
-                className="w-full bg-slate-900 border border-slate-700/80 focus:border-sky-500 rounded-lg px-3.5 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none"
+                placeholder="Auto-detected or type manually"
+                className="w-full bg-white border border-slate-200 focus:border-indigo-500 rounded-xl px-3.5 py-2 text-xs text-slate-900 placeholder-slate-400 outline-none"
               />
               {ward && (
-                <p className="text-[10px] text-emerald-400 mt-1 font-mono flex items-center gap-1">
+                <p className="text-[10px] text-emerald-600 mt-1 flex items-center gap-1 font-semibold">
                   <MapPin className="w-3 h-3" />
                   Ward detected from map location
                 </p>
@@ -579,23 +552,23 @@ export function ComplaintForm() {
           </div>
 
           {locationPinned && (
-            <div className="text-[11px] text-emerald-400 font-mono flex items-center gap-1.5 bg-emerald-950/40 border border-emerald-800/50 p-2 rounded-lg">
-              <Check className="w-3.5 h-3.5" />
+            <div className="text-xs text-slate-700 font-mono flex items-center gap-1.5 bg-indigo-50 p-2.5 rounded-xl border border-indigo-100">
+              <Check className="w-3.5 h-3.5 text-emerald-500 font-bold" />
               <span>Location anchored: Lat {coords.lat}, Lng {coords.lng}</span>
             </div>
           )}
         </div>
 
-        {/* Authenticated User Account Auto-Association (Replaces manual contact section) */}
-        <div className="p-3.5 bg-slate-950/80 border border-slate-800 rounded-xl flex items-center justify-between text-xs text-slate-400">
-          <span>Reporting as: <strong className="text-slate-200">{currentUser?.name || "Civilian Participant"}</strong> ({currentUser?.email})</span>
-          <span className="text-emerald-400 font-mono text-[11px]">User ID: {currentUser?.id || "usr_civilian_01"}</span>
+        {/* Authenticated User Account Auto-Association */}
+        <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs text-slate-600">
+          <span>Reporting as: <strong className="text-slate-900">{currentUser?.name || "Civilian Participant"}</strong> ({currentUser?.email})</span>
+          <span className="text-slate-400 font-mono text-[11px]">Verified Citizen</span>
         </div>
 
         {/* Error message */}
         {errorMsg && (
-          <div className="flex items-center gap-2 p-3 bg-rose-950/80 border border-rose-800 text-rose-300 rounded-xl text-xs font-medium">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <div className="flex items-center gap-2 p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-500" />
             <span>{errorMsg}</span>
           </div>
         )}
@@ -605,16 +578,16 @@ export function ComplaintForm() {
           <button
             type="submit"
             disabled={isSubmitting || !rawText.trim()}
-            className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-sky-600 to-sky-500 hover:from-sky-500 hover:to-sky-400 text-white font-bold text-base shadow-xl shadow-sky-600/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition transform active:scale-[0.99]"
+            className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-indigo-600 via-violet-600 to-pink-600 hover:opacity-95 text-white font-bold text-xs uppercase tracking-wider shadow-neon flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition duration-300 cursor-pointer"
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="w-5 h-5 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin" />
                 <span>Running AI Agent Pipeline...</span>
               </>
             ) : (
               <>
-                <Send className="w-5 h-5" />
+                <Send className="w-4 h-4" />
                 <span>Submit Complaint to City AI</span>
               </>
             )}

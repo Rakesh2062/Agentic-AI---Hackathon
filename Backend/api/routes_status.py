@@ -18,6 +18,7 @@ router = APIRouter(prefix="/status", tags=["Status Tracking"])
 def _normalise_case_for_tracking(case_doc: dict) -> dict:
     """Make legacy agent-state documents safe for the public tracker."""
     case_doc["_id"] = str(case_doc["_id"])
+    case_doc["id"] = case_doc["_id"]
     case_doc.setdefault("complaint_id", case_doc.get("complaint_number", ""))
     case_doc.setdefault("description", case_doc.get("raw_text", ""))
     case_doc.setdefault("department", case_doc.get("admin_department_override") or case_doc.get("recommended_department"))

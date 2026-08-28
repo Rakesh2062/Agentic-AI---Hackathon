@@ -18,7 +18,8 @@ import {
   Loader2,
   Download,
   Radio,
-  Sparkles
+  Sparkles,
+  Building2
 } from "lucide-react";
 
 export function DepartmentDashboard() {
@@ -38,9 +39,6 @@ export function DepartmentDashboard() {
   const [selectedCase, setSelectedCase] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Live simulation ticker
-  const [simulationActive, setSimulationActive] = useState(false);
-
   const loadData = async () => {
     setLoading(true);
     try {
@@ -48,7 +46,12 @@ export function DepartmentDashboard() {
         getDepartmentCases(selectedDepartment),
         getDepartmentStats(selectedDepartment),
       ]);
-      setCases(casesRes || []);
+      // Normalize: ensure each case has `id` set from MongoDB's `_id`
+      const normalized = (casesRes || []).map((c) => ({
+        ...c,
+        id: c._id || c.id,
+      }));
+      setCases(normalized);
       setStats(statsRes || null);
       setLoading(false);
     } catch (err) {
@@ -139,11 +142,15 @@ export function DepartmentDashboard() {
   });
 
   return (
-    <div className="space-y-6">
-      {/* Top Controls Bar */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-slate-900/80 border border-slate-800 p-4 sm:p-5 rounded-2xl shadow-lg">
+    <div className="space-y-6 pb-6 animate-fade-in max-w-7xl mx-auto">
+      
+      {/* Top Controls Bar with Clean Command Aesthetics */}
+      <div className="glass-panel p-5 sm:p-6 rounded-3xl border border-white/80 shadow-float flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-gradient-to-r from-white/90 via-slate-50/60 to-blue-50/40">
         <div>
           <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-white flex items-center justify-center shadow-md">
+              <Building2 className="w-5 h-5" />
+            </div>
             <DepartmentSelector
               currentDepartment={selectedDepartment}
               onSelect={(dept) => setSelectedDepartment(dept)}
@@ -151,13 +158,13 @@ export function DepartmentDashboard() {
             <button
               onClick={loadData}
               title="Refresh Queue"
-              className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition"
+              className="p-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 hover:text-slate-900 transition shadow-sm cursor-pointer"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-sky-400" : ""}`} />
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-indigo-600" : ""}`} />
             </button>
           </div>
-          <p className="text-xs text-slate-400 mt-1.5 hidden sm:block">
-            AI Triage Engine • Prioritized by SLA Urgency & Public Safety Weighting
+          <p className="text-xs text-slate-500 mt-2 font-medium">
+            AI Triage Engine • Municipal Command &amp; Real-Time Field Dispatch
           </p>
         </div>
 
@@ -166,21 +173,21 @@ export function DepartmentDashboard() {
           {/* CSV Export */}
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition"
+            className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-xs rounded-xl shadow-sm transition cursor-pointer"
             title="Download CSV report"
           >
-            <Download className="w-3.5 h-3.5 text-sky-400" />
-            <span className="hidden sm:inline">Export CSV</span>
+            <Download className="w-3.5 h-3.5 text-slate-500" />
+            <span>Export CSV</span>
           </button>
 
           {/* View Mode Switcher */}
-          <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
             <button
               onClick={() => setViewMode("kanban")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition duration-200 cursor-pointer ${
                 viewMode === "kanban"
-                  ? "bg-sky-600 text-white shadow"
-                  : "text-slate-400 hover:text-white"
+                  ? "bg-white text-indigo-600 shadow-sm"
+                  : "text-slate-500 hover:text-slate-900"
               }`}
             >
               <LayoutGrid className="w-3.5 h-3.5" />
@@ -189,33 +196,33 @@ export function DepartmentDashboard() {
 
             <button
               onClick={() => setViewMode("list")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition duration-200 cursor-pointer ${
                 viewMode === "list"
-                  ? "bg-sky-600 text-white shadow"
-                  : "text-slate-400 hover:text-white"
+                  ? "bg-white text-indigo-600 shadow-sm"
+                  : "text-slate-500 hover:text-slate-900"
               }`}
             >
               <List className="w-3.5 h-3.5" />
-              <span>Queue Table</span>
+              <span>Table</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* KPI Metrics */}
+      {/* KPI Metrics Strip */}
       <KPICards stats={stats} loading={loading} />
 
       {/* Search & Filtering Strip */}
-      <div className="glass-panel p-3.5 rounded-xl border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div className="glass-panel p-3.5 rounded-2xl border border-white/80 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
         {/* Search */}
-        <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+        <div className="relative w-full sm:w-80">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Filter ID, street, keyword..."
-            className="w-full bg-slate-950 border border-slate-800 focus:border-sky-500 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 outline-none"
+            placeholder="Search complaint ID, street, keyword..."
+            className="w-full bg-white border border-slate-200 focus:border-indigo-500 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 outline-none transition shadow-sm"
           />
         </div>
 
@@ -225,7 +232,7 @@ export function DepartmentDashboard() {
           <select
             value={priorityFilter}
             onChange={(e) => setPriorityFilter(e.target.value)}
-            className="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-lg px-2.5 py-1.5 outline-none font-medium"
+            className="bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-xl px-3 py-1.5 outline-none shadow-sm"
           >
             <option value="all">All Priorities</option>
             <option value={Priority.CRITICAL}>Critical Only</option>
@@ -238,7 +245,7 @@ export function DepartmentDashboard() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-lg px-2.5 py-1.5 outline-none font-medium"
+            className="bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-xl px-3 py-1.5 outline-none shadow-sm"
           >
             <option value="all">All Statuses</option>
             <option value={Status.SUBMITTED}>Submitted</option>
@@ -255,7 +262,7 @@ export function DepartmentDashboard() {
                 setPriorityFilter("all");
                 setStatusFilter("all");
               }}
-              className="text-xs text-sky-400 hover:text-sky-300 font-semibold px-2 py-1"
+              className="text-xs font-bold text-indigo-600 hover:underline px-2 py-1"
             >
               Reset
             </button>
@@ -265,10 +272,10 @@ export function DepartmentDashboard() {
 
       {/* Main Work Area: Kanban or List View */}
       {loading ? (
-        <div className="py-24 text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-sky-500 mx-auto mb-3" />
-          <p className="text-sm font-medium text-slate-400">
-            Fetching department queues and AI priority matrices...
+        <div className="py-24 text-center glass-panel rounded-3xl shadow-sm">
+          <Loader2 className="w-8 h-8 animate-spin text-indigo-600 mx-auto mb-3" />
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider font-mono">
+            Fetching Department Telemetry &amp; AI Matrices...
           </p>
         </div>
       ) : viewMode === "kanban" ? (

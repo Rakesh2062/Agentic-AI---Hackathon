@@ -12,4 +12,8 @@ pydantic-settings
 motor
 pymongo
 certifi
+<<<<<<< HEAD
 python-multipart
+=======
+python-multipart
+>>>>>>> e6c2116bee59f7c865a8026cb6933ee514dd7ce8

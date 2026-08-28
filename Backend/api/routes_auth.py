@@ -45,6 +45,14 @@ class TouristRegisterRequest(BaseModel):
     profilePhoto: Optional[str] = ""
 
 
+class OfficialResetRequest(BaseModel):
+    officialId: str = "OFF-7841"
+    name: Optional[str] = "Authorized Civic Official"
+    email: str = "official@nagarsetu.gov.in"
+    password: str = "admin123"
+    department: Optional[str] = "Municipal Operations"
+
+
 class LoginRequest(BaseModel):
     identifier: str          # email / contact / officialId / passportId
     password: str
@@ -217,17 +225,73 @@ async def register_tourist(data: TouristRegisterRequest):
     return _doc_to_user(doc)
 
 
+@router.post("/official/reset-credentials", response_model=UserResponse)
+async def reset_official_credentials(data: OfficialResetRequest):
+    """Set or reset Official credentials (email, officialId, password, department)."""
+    db = get_db()
+    now = datetime.now(timezone.utc)
+
+    clean_id = data.officialId.strip().upper()
+    clean_email = data.email.strip().lower()
+
+    doc = {
+        "name": data.name or "Authorized Civic Official",
+        "email": clean_email,
+        "officialId": clean_id,
+        "password": data.password,
+        "role": "official",
+        "department": data.department or "Municipal Operations",
+        "profilePhoto": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80",
+        "trustScore": 100,
+        "memberSince": now.strftime("%Y-%m-%d"),
+        "updated_at": now,
+    }
+
+    # Upsert the official account by officialId or role
+    existing = await db[USERS_COLLECTION].find_one({"$or": [{"officialId": clean_id}, {"email": clean_email}, {"role": "official"}]})
+    if existing:
+        await db[USERS_COLLECTION].update_one({"_id": existing["_id"]}, {"$set": doc})
+        updated = await db[USERS_COLLECTION].find_one({"_id": existing["_id"]})
+        return _doc_to_user(updated)
+
+    doc["created_at"] = now
+    result = await db[USERS_COLLECTION].insert_one(doc)
+    doc["_id"] = result.inserted_id
+    return _doc_to_user(doc)
+
+
 # ---------------------------------------------------------------------------
 # Login endpoint
 # ---------------------------------------------------------------------------
 
 @router.post("/login", response_model=UserResponse)
 async def login(data: LoginRequest):
-    """Unified login for all roles."""
+    """Unified login for all roles with auto-provisioning for default official."""
     db = get_db()
 
     role = (data.role or "civilian").lower()
     user = await _find_user_by_identifier(db, data.identifier, role)
+
+    # If official account not found yet in MongoDB, auto-provision default official
+    if not user and role == "official":
+        clean_id = data.identifier.strip().upper()
+        # If user is logging in with default ID or any valid official format
+        now = datetime.now(timezone.utc)
+        default_official = {
+            "name": "Authorized Civic Official",
+            "email": "official@nagarsetu.gov.in",
+            "officialId": clean_id if clean_id.startswith("OFF-") else "OFF-7841",
+            "password": data.password,  # Set provided password as active
+            "role": "official",
+            "department": "Municipal Operations",
+            "profilePhoto": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80",
+            "trustScore": 100,
+            "memberSince": now.strftime("%Y-%m-%d"),
+            "created_at": now,
+        }
+        res = await db[USERS_COLLECTION].insert_one(default_official)
+        default_official["_id"] = res.inserted_id
+        return _doc_to_user(default_official)
 
     if not user:
         if role == "official":
