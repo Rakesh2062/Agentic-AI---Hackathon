@@ -22,7 +22,7 @@ import {
   Lock,
   Award
 } from "lucide-react";
-import { createComplaint, getDepartmentCases } from "../../api/endpoints";
+import { createComplaint, getDepartmentCases, uploadFile } from "../../api/endpoints";
 import { useApp } from "../../context/AppContext";
 import { useAuth } from "../../context/AuthContext";
 import { ComplaintSuccess } from "./ComplaintSuccess";
@@ -173,22 +173,27 @@ export function ComplaintForm() {
     addFiles(files);
   };
 
-  const addFiles = (files) => {
-    const newAttachments = files.map((file) => {
-      const isImg = file.type.startsWith("image/");
-      const isPdf = file.type === "application/pdf";
-      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-
-      return {
-        file,
-        name: file.name,
-        size: `${sizeMB} MB`,
-        type: isImg ? "image" : isPdf ? "pdf" : "document",
-        preview: isImg ? URL.createObjectURL(file) : null,
-      };
+  const addFilesToAttachments = (files) => {
+    const validFiles = files.filter((f) => {
+      const isImg = f.type.startsWith("image/");
+      const isPdf = f.type === "application/pdf";
+      const isVid = f.type.startsWith("video/");
+      return isImg || isPdf || isVid;
     });
 
-    setAttachments((prev) => [...prev, ...newAttachments]);
+    if (validFiles.length < files.length) {
+      showToast("Some unsupported file formats were skipped (Supports JPG, PNG, WEBP, PDF).", "warning");
+    }
+
+    const newItems = validFiles.map((f) => ({
+      name: f.name,
+      size: `${(f.size / (1024 * 1024)).toFixed(1)} MB`,
+      url: URL.createObjectURL(f),
+      type: f.type.startsWith("image/") ? "image" : f.type === "application/pdf" ? "document" : "video",
+    }));
+
+    setAttachments([...attachments, ...newItems]);
+    showToast(`Attached ${validFiles.length} file(s)`, "success");
   };
 
   const removeAttachment = (index) => {
@@ -218,9 +223,7 @@ export function ComplaintForm() {
         latitude: coords.lat,
         longitude: coords.lng,
       },
-      attachments: attachments.map((a) => a.name),
-      citizen_name: currentUser?.name || "Civic Resident",
-      userId: currentUser?.id || "usr_civilian_01",
+      attachments: attachments.map((a) => ({ name: a.name, size: a.size, url: a.url, type: a.type })),
     };
 
     try {

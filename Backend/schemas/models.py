@@ -148,6 +148,10 @@ class CaseResponse(BaseModel):
     updated_at: Optional[datetime] = None
     audit_events: list[dict] = Field(default_factory=list)
     processing_errors: list[str] = Field(default_factory=list)
+    attachments: list[str] = Field(default_factory=list)
+    userId: Optional[str] = None
+    title: Optional[str] = None
+    image_url: Optional[str] = None
 
     @classmethod
     def from_agent_result(cls, result, original_request: ComplaintCreate) -> "CaseResponse":

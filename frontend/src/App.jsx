@@ -12,6 +12,7 @@ import { CitizenPortal } from "./components/citizen/CitizenPortal";
 import { DepartmentDashboard } from "./components/department/DepartmentDashboard";
 import { AnalyticsView } from "./components/analytics/AnalyticsView";
 import { ProfileView } from "./components/profile/ProfileView";
+import { AIAgentPortal } from "./components/agent/AIAgentPortal";
 import { UserRole } from "./utils/constants";
 import { 
   Building2, 
@@ -45,6 +46,9 @@ function MainAppContent() {
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       {/* 1. Citizen / Tourist Portal */}
       {activeTab === "citizen" && !isOfficial && <CitizenPortal />}
+
+      {/* 1.5 AI Agent Portal */}
+      {activeTab === "agent" && !isOfficial && <AIAgentPortal />}
 
       {/* 2. Department Ops (Protected for Civic Officials ONLY) */}
       {activeTab === "dashboard" && (

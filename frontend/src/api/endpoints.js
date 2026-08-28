@@ -1,8 +1,27 @@
 // Endpoints wrapper for FastAPI + MongoDB Backend
 // All data comes from and goes to the real database — no mock fallbacks.
 
-import { apiClient } from "./client";
+import { apiClient, BASE_URL } from "./client";
 import { Category, Status, Priority, UserRole, DepartmentsList, ResidentBenefitsCatalog, VisitorBenefitsCatalog } from "../utils/constants";
+
+/**
+ * Upload a single file (image or PDF) to the backend.
+ * Returns { file_id, url, content_type } where url is a stable server path.
+ */
+export async function uploadFile(file) {
+  const formData = new FormData();
+  formData.append("file", file);
+  const response = await fetch(`${BASE_URL}/files/upload`, {
+    method: "POST",
+    body: formData,
+    // Do NOT set Content-Type — browser sets multipart/form-data boundary automatically
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || "File upload failed");
+  }
+  return response.json();
+}
 
 /**
  * Citizen / Visitor: Submit a new complaint
@@ -117,7 +136,7 @@ export async function getDepartments() {
   } catch (err) {
     return DepartmentsList;
   }
-
+}
 
 /**
  * Official: Get ALL cases (for official dashboard)
@@ -187,4 +206,60 @@ export async function getAnalyticsMetrics() {
       active_escalations: 0,
     };
   }
+}
+
+/**
+ * AI Agent: Conversational intake — send a message and get back the agent's reply.
+ * POST /api/v1/chat/intake
+ *
+ * @param {Array}  messages       - Full conversation history [{role, text}, ...]
+ * @param {Object} extractedData  - Currently extracted fields from prior turns
+ * @param {string} systemContext  - Extra context injected by the frontend (location, attachments)
+ * @returns {{ reply: string, extracted_data: object, is_ready: boolean }}
+ */
+export async function chatWithAgent({ messages, extractedData = {}, systemContext = "" }) {
+  return await apiClient("/chat/intake", {
+    method: "POST",
+    body: JSON.stringify({
+      messages,
+      extracted_data: extractedData,
+      system_context: systemContext,
+    }),
+  });
+}
+
+/**
+ * Chat Session Persistence
+ * Save (create/update) a chat session for a user in MongoDB.
+ */
+export async function saveChatSession({ userId, sessionId, title, messages, extractedData, location, attachments, caseId }) {
+  return await apiClient("/chat-sessions/save", {
+    method: "POST",
+    body: JSON.stringify({
+      user_id: userId,
+      session_id: sessionId || null,
+      title,
+      messages,
+      extracted_data: extractedData || {},
+      location: location || null,
+      attachments: attachments || [],
+      case_id: caseId || null,
+    }),
+  });
+}
+
+/**
+ * Fetch all chat sessions for a user.
+ */
+export async function getUserChatSessions(userId) {
+  return await apiClient(`/chat-sessions/user/${userId}`);
+}
+
+/**
+ * Delete a specific chat session.
+ */
+export async function deleteChatSession(sessionId, userId) {
+  return await apiClient(`/chat-sessions/${sessionId}?user_id=${encodeURIComponent(userId)}`, {
+    method: "DELETE",
+  });
 }

@@ -43,13 +43,13 @@ export const Priority = {
 };
 
 export const CategoryLabels = {
-  [Category.ROADS]: "Roads & Pavements",
-  [Category.WATER]: "Water Supply & Distribution",
-  [Category.DRAINAGE]: "Drainage & Sewerage",
+  [Category.ROADS]: "Roads & Infrastructure",
+  [Category.WATER]: "Water & Sewage Board",
+  [Category.DRAINAGE]: "Stormwater & Drainage",
   [Category.WASTE]: "Solid Waste Management",
   [Category.STREETLIGHT]: "Street Lighting & Electrical",
-  [Category.TRAFFIC]: "Traffic & Signals",
-  [Category.PUBLIC_FACILITY]: "Public Facilities & Parks",
+  [Category.TRAFFIC]: "Traffic Management & Signals",
+  [Category.PUBLIC_FACILITY]: "Parks & Urban Forestry",
   [Category.ENVIRONMENT]: "Environment & Urban Forestry",
   [Category.OTHER]: "Other (Specify Custom Issue)",
 };

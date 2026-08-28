@@ -46,7 +46,12 @@ export function DepartmentDashboard() {
         getDepartmentCases(selectedDepartment),
         getDepartmentStats(selectedDepartment),
       ]);
-      setCases(casesRes || []);
+      // Normalize: ensure each case has `id` set from MongoDB's `_id`
+      const normalized = (casesRes || []).map((c) => ({
+        ...c,
+        id: c._id || c.id,
+      }));
+      setCases(normalized);
       setStats(statsRes || null);
       setLoading(false);
     } catch (err) {

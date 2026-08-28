@@ -93,6 +93,7 @@ async def get_all_cases(
     cases = []
     async for doc in cursor:
         doc["_id"] = str(doc["_id"])
+        doc["id"] = doc["_id"]  # Map to Pydantic CaseResponse.id field
         if "complaint_id" not in doc and "complaint_number" in doc:
             doc["complaint_id"] = doc["complaint_number"]
         cases.append(doc)
@@ -118,6 +119,12 @@ async def validate_complaint(case_id: str, validation: ValidateComplaintRequest)
     if not case_doc:
         raise HTTPException(status_code=404, detail="Case not found")
 
+    if case_doc.get("civicPointsAwarded") is not None:
+        raise HTTPException(
+            status_code=400,
+            detail="This complaint has already been validated and points have been awarded."
+        )
+
     severity = validation.validatedSeverity.upper()
     base_points = {"CRITICAL": 50, "HIGH": 30, "MEDIUM": 15, "LOW": 5}.get(severity, 15)
     evidence_bonus = 5 if case_doc.get("attachments") else 0
@@ -133,18 +140,18 @@ async def validate_complaint(case_id: str, validation: ValidateComplaintRequest)
     )
 
     now = datetime.now(timezone.utc)
+    current_status = case_doc.get("status", "under_review")
     status_entry = {
-        "status": "assigned",
+        "status": current_status,
         "message": f"Officially validated by {validation.officerName}. Awarded +{total_points} Civic Points. {points_reason}",
         "timestamp": now.isoformat(),
-        "updated_by": validation.officerName,
+        "updated_by": validation.officerName or "Civic Official",
     }
 
     await db[COMPLAINTS_COLLECTION].update_one(
         {"_id": oid},
         {
             "$set": {
-                "status": "assigned",
                 "validatedSeverity": severity,
                 "civicPointsAwarded": total_points,
                 "pointsBreakdown": {
@@ -199,6 +206,7 @@ async def validate_complaint(case_id: str, validation: ValidateComplaintRequest)
 
     updated = await db[COMPLAINTS_COLLECTION].find_one({"_id": oid})
     updated["_id"] = str(updated["_id"])
+    updated["id"] = updated["_id"]  # Map to Pydantic CaseResponse.id field
     if "complaint_id" not in updated and "complaint_number" in updated:
         updated["complaint_id"] = updated["complaint_number"]
 
@@ -245,6 +253,7 @@ async def get_department_cases(
     cases = []
     async for doc in cursor:
         doc["_id"] = str(doc["_id"])
+        doc["id"] = doc["_id"]  # Map to Pydantic CaseResponse.id field
         if "complaint_id" not in doc and "complaint_number" in doc:
             doc["complaint_id"] = doc["complaint_number"]
         cases.append(doc)
@@ -413,6 +422,7 @@ async def update_case_status(case_id: str, update: CaseUpdateRequest):
     # Return updated case
     updated = await db[COMPLAINTS_COLLECTION].find_one({"_id": oid})
     updated["_id"] = str(updated["_id"])
+    updated["id"] = updated["_id"]  # Map to Pydantic CaseResponse.id field
     if "complaint_id" not in updated and "complaint_number" in updated:
         updated["complaint_id"] = updated["complaint_number"]
     return updated
@@ -447,6 +457,7 @@ async def get_user_complaints(
     cases = []
     async for doc in cursor:
         doc["_id"] = str(doc["_id"])
+        doc["id"] = doc["_id"]  # Map to Pydantic CaseResponse.id field
         if "complaint_id" not in doc and "complaint_number" in doc:
             doc["complaint_id"] = doc["complaint_number"]
         cases.append(doc)
