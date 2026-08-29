@@ -71,6 +71,7 @@ async def create_complaint(submission: ComplaintCreate):
 
         # Insert into canonical complaints collection
         db = get_db()
+        inserted = await db[COMPLAINTS_COLLECTION].insert_one(case_data)
         case_data["_id"] = str(inserted.inserted_id)
         case_data["id"] = case_data["_id"]
 
